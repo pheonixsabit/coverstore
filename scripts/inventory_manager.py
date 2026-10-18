@@ -343,13 +343,13 @@ def save_to_excel(rows: List[Dict[str, Any]], filepath: str = INVENTORY_XLSX_PAT
         row_vals = []
         for k in FIELDNAMES:
             if k == "landing cost":
-                row_vals.append(f"=SUM(J{row_idx}:P{row_idx})")
+                row_vals.append(f"=SUM(K{row_idx}:Q{row_idx})")
             elif k == "margin":
-                row_vals.append(f"=IF(Q{row_idx}<300, Q{row_idx}*1.4, IF(Q{row_idx}<400, Q{row_idx}*1.33, Q{row_idx}*1.25))")
+                row_vals.append(f"=IF(R{row_idx}<300, R{row_idx}*1.4, IF(R{row_idx}<400, R{row_idx}*1.33, R{row_idx}*1.25))")
             elif k == "sell price":
-                row_vals.append(f"=INT(R{row_idx}/100)*100 + IF(MOD(ROUND(R{row_idx},0),100)<25, 0, IF(MOD(ROUND(R{row_idx},0),100)<=74, 49, 99))")
+                row_vals.append(f"=INT(S{row_idx}/100)*100 + IF(MOD(ROUND(S{row_idx},0),100)<25, 0, IF(MOD(ROUND(S{row_idx},0),100)<=74, 49, 99))")
             elif k == "max discount":
-                row_vals.append(f"=IF(S{row_idx}<300, 0, MIN(99, IF(S{row_idx}<500, S{row_idx}*7%, IF(S{row_idx}<700, S{row_idx}*12%, S{row_idx}*15%))))")
+                row_vals.append(f"=IF(T{row_idx}<300, 0, MIN(99, IF(T{row_idx}<500, T{row_idx}*7%, IF(T{row_idx}<700, T{row_idx}*12%, T{row_idx}*15%))))")
             elif k in NUMERIC_COST_FIELDS:
                 row_vals.append(clean_float(r.get(k)))
             else:
@@ -468,8 +468,9 @@ def sync_inventory():
             local_path = f"Realme Neo8/Liquid Silicone/sku/{sku_code}.jpg"
 
             new_row = {
-                "Product Name": title,
                 "Product Code": sku_code,
+                "SEO Title": generate_seo_title(title, model_name, material),
+                "Product Name": title,
                 "Material": material,
                 "Color": color_name,
                 "Phone Model": model_name,
@@ -584,8 +585,9 @@ def append_downloaded_product(
             local_path = f"{model_name}/{material}/sku/{sku_code}.jpg"
 
             row = {
-                "Product Name": title,
                 "Product Code": sku_code,
+                "SEO Title": generate_seo_title(title, model_name, material),
+                "Product Name": title,
                 "Material": material,
                 "Color": color_name,
                 "Phone Model": model_name,
@@ -624,6 +626,14 @@ def sync_csv_to_excel(csv_path: str = INVENTORY_CSV_PATH, xlsx_path: str = INVEN
         return 0
     with open(csv_path, "r", encoding="utf-8-sig") as f:
         rows = list(csv.DictReader(f))
+    # Ensure SEO Title is populated on all rows
+    updated_csv = False
+    for r in rows:
+        if not r.get("SEO Title"):
+            r["SEO Title"] = generate_seo_title(r.get("Product Name", ""), r.get("Phone Model", ""), r.get("Material", ""))
+            updated_csv = True
+    if updated_csv:
+        save_to_csv(rows, csv_path)
     save_to_excel(rows, xlsx_path)
     print(f"[✓] Successfully synced {len(rows)} records from {os.path.basename(csv_path)} to {os.path.basename(xlsx_path)}")
     return len(rows)
