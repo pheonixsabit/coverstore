@@ -57,6 +57,7 @@
 - **Sync Cadence**: Synchronizes every 20 minutes aligned to standard clock boundaries (`:00`, `:20`, `:40` past the hour).
 - **Sync Engine**: `scripts/auto_sync.py` and `scripts/run_auto_sync.bat`.
   - Automatically pulls remote changes with `--rebase --autostash` to integrate the other workstation's work safely.
+  - Automatically regenerates and synchronizes `inventory.xlsx` from `inventory.csv` to prevent binary merge conflicts and preserve live pricing formulas.
   - Stages all new and modified local assets and files (`git add .`).
   - Creates a descriptive commit (`chore: auto-sync [hostname] [timestamp]`).
   - Pushes directly to `origin main` to keep both PCs in continuous sync.

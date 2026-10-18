@@ -6,5 +6,10 @@ echo Starting CoverStore 20-Minute Git Auto-Sync Daemon...
 echo Repository: %CD%
 echo Synchronizing every 20 minutes (:00, :20, :40)
 echo ======================================================
-python scripts\auto_sync.py
+py -V >nul 2>&1
+if %errorlevel% equ 0 (
+    py scripts\auto_sync.py
+) else (
+    python scripts\auto_sync.py
+)
 pause
