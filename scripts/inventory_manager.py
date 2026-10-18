@@ -2,6 +2,7 @@ import os
 import sys
 import csv
 import io
+import re
 import urllib.request
 import urllib.error
 from typing import List, Dict, Any, Optional
@@ -421,12 +422,18 @@ def append_downloaded_product(
             existing_codes.add(sku_code)
 
             color_name = variant_label
-            for prefix in ["Straight Edge New Model [", "Rubik's Cube Liquid Silicone", "]"]:
-                color_name = color_name.replace(prefix, "")
-            color_name = color_name.strip()
+            bracket_match = re.search(r'\[([^\]]+)\]', color_name)
+            if bracket_match:
+                color_name = bracket_match.group(1).title()
+            else:
+                for prefix in ["Straight Edge New Model [", "Rubik's Cube Liquid Silicone", "Built-in magnetic tpu frosted soft shell", "anti-fingerprint - skin-friendly", "]"]:
+                    color_name = color_name.replace(prefix, "")
+                color_name = color_name.strip(" []-").title()
 
             price_dict = sku.get("price", {})
             dropship = price_dict.get("dropship", {})
+            price_val = dropship.get("offer_price") or price_dict.get("original") or 34.0935
+            prod_price = round(float(price_val) * 1.1703, 2)
             # Extract SKU weight and compute air shipping: weight * 2 * 780 BDT/kg
             sku_weight = 0.0
             for rs in product_info.get("raw_data", {}).get("variation", {}).get("skus", {}).get("data", []):

@@ -46,8 +46,9 @@ def select_phone_model(models: List[Dict[str, str]]) -> List[Dict[str, str]]:
         print(f"  [{idx}] {m['clean_name']}")
     
     if len(models) == 1:
-        print("\nNote: Only 1 phone model is available for this product.")
-    
+        print(f"\n[+] Auto-selected the only available phone model: {models[0]['clean_name']}")
+        return models
+
     print("\nOptions: Enter number (e.g. 1), comma-separated (e.g. 1,2), 'A' for all, or type model name:")
     while True:
         choice = input("Select model: ").strip()
@@ -87,6 +88,7 @@ def select_phone_model(models: List[Dict[str, str]]) -> List[Dict[str, str]]:
 def main():
     parser = argparse.ArgumentParser(description="Download phone cover images from MoveOn Global for specific phone model and material.")
     parser.add_argument("--url", "-u", type=str, help="MoveOn product URL")
+    parser.add_argument("--china-delivery", "-c", type=float, default=None, help="China domestic delivery fee in BDT per unit")
     args = parser.parse_args()
 
     url = args.url
@@ -182,7 +184,7 @@ def main():
 
         # In-place translation: replace original non-English images directly
         print(f"\n[*] In-place translating non-English images in \\gallery\\ and \\sku\\...")
-        translate_in_place(gallery_dir, sku_dir)
+        translate_in_place(gallery_dir, sku_dir, material=material, model_name=model_name)
 
         print(f"\n[✓] Completed model [{model_clean}]:")
         print(f"    Gallery Images: {len(os.listdir(gallery_dir))} in {gallery_dir}")
@@ -190,11 +192,13 @@ def main():
 
     # 4. Automatically sync/append to inventory records (inventory.csv and inventory.xlsx)
     print("\n[*] Updating inventory records (inventory.csv / inventory.xlsx)...")
-    try:
-        china_del_str = input("Enter China domestic delivery fee in BDT per unit [default 10.0]: ").strip()
-        china_delivery = float(china_del_str) if china_del_str else 10.0
-    except Exception:
-        china_delivery = 10.0
+    china_delivery = args.china_delivery
+    if china_delivery is None:
+        try:
+            china_del_str = input("Enter China domestic delivery fee in BDT per unit [default 10.0]: ").strip()
+            china_delivery = float(china_del_str) if china_del_str else 10.0
+        except Exception:
+            china_delivery = 10.0
 
     try:
         append_downloaded_product(product_info, selected_models, material, url, china_del=china_delivery)

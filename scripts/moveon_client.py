@@ -31,6 +31,8 @@ def clean_model_name(name: str) -> str:
     name = re.sub(r'【[^】]*】', '', name)
     name = re.sub(r'\[[^\]]*\]', '', name)
     name = re.sub(r'\(1\s*case\)', '', name, flags=re.IGNORECASE)
+    name = re.sub(r'\brealme\b', 'Realme', name, flags=re.IGNORECASE)
+    name = re.sub(r'\bneo\s*(\d+)\b', r'Neo\1', name, flags=re.IGNORECASE)
     name = re.sub(r'[\\/:*?"<>|]', '_', name)  # Windows-safe filename characters
     return name.strip()
 

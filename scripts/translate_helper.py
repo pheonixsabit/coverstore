@@ -144,25 +144,115 @@ def translate_side_banner_blue(img_path: str, out_path: Optional[str] = None):
     im.save(out_path, quality=95)
     return out_path
 
-def translate_in_place(gallery_dir: str, sku_dir: str):
+def translate_tpu_gallery_01(img_path: str, out_path: Optional[str] = None, model_name: str = "Realme Neo8"):
+    """Translates TPU showcase gallery_01.jpg in-place with clean typography."""
+    if out_path is None:
+        out_path = img_path
+    im = Image.open(img_path).convert("RGB")
+    draw = ImageDraw.Draw(im)
+    w, h = im.size
+
+    # Yoobao clean badge
+    draw.rectangle([0, 0, 340, 90], fill=(225, 23, 23))
+    font_logo = get_font("C:/Windows/Fonts/arialbd.ttf", 54)
+    draw.text((35, 12), "Yoobao", fill=(255, 255, 255), font=font_logo)
+
+    # Top-right banner
+    draw.rectangle([340, 0, w, 190], fill=(226, 227, 229))
+    font_title = get_font("C:/Windows/Fonts/arialbd.ttf", 52)
+    font_sub = get_font("C:/Windows/Fonts/segoeuib.ttf", 38)
+    draw.text((430, 30), "ULTRA-THIN TPU CASE", fill=(25, 25, 25), font=font_title)
+    draw.text((430, 95), "FROSTED MAGNETIC SOFT COVER", fill=(80, 80, 80), font=font_sub)
+
+    # Bottom banner
+    draw.rectangle([0, h - 160, w, h], fill=(42, 45, 50))
+    font_bot = get_font("C:/Windows/Fonts/arialbd.ttf", 62)
+    m_text = model_name
+    draw.text((w // 2 - 200, h - 120), m_text, fill=(255, 180, 0), font=font_bot)
+
+    im.save(out_path, quality=95)
+    return out_path
+
+def translate_tpu_gallery_02(img_path: str, out_path: Optional[str] = None):
+    """Translates TPU gallery_02.jpg in-place."""
+    if out_path is None:
+        out_path = img_path
+    im = Image.open(img_path).convert("RGB")
+    draw = ImageDraw.Draw(im)
+    w, h = im.size
+    draw.rectangle([0, 0, w, 220], fill=(216, 217, 219))
+    font_g2 = get_font("C:/Windows/Fonts/arialbd.ttf", 54)
+    font_g2_sub = get_font("C:/Windows/Fonts/segoeuib.ttf", 40)
+    draw.text((w // 2 - 280, 40), "ULTRA-THIN FROSTED", fill=(25, 25, 25), font=font_g2)
+    draw.text((w // 2 - 220, 115), "ANTI-FINGERPRINT MATTE", fill=(70, 70, 70), font=font_g2_sub)
+    im.save(out_path, quality=95)
+    return out_path
+
+def translate_tpu_gallery_03(img_path: str, out_path: Optional[str] = None):
+    """Translates TPU gallery_03.jpg in-place."""
+    if out_path is None:
+        out_path = img_path
+    im = Image.open(img_path).convert("RGB")
+    draw = ImageDraw.Draw(im)
+    draw.rectangle([740, 80, 1276, 260], fill=(216, 217, 219))
+    font_g3 = get_font("C:/Windows/Fonts/arialbd.ttf", 52)
+    font_g3_sub = get_font("C:/Windows/Fonts/segoeuib.ttf", 40)
+    draw.text((760, 105), "MICRO-FROSTED", fill=(25, 25, 25), font=font_g3)
+    draw.text((760, 175), "TRANSLUCENT DESIGN", fill=(70, 70, 70), font=font_g3_sub)
+    im.save(out_path, quality=95)
+    return out_path
+
+def translate_tpu_gallery_04(img_path: str, out_path: Optional[str] = None):
+    """Translates TPU gallery_04.jpg in-place."""
+    if out_path is None:
+        out_path = img_path
+    im = Image.open(img_path).convert("RGB")
+    draw = ImageDraw.Draw(im)
+    draw.rectangle([740, 80, 1276, 260], fill=(216, 217, 219))
+    font_g4 = get_font("C:/Windows/Fonts/arialbd.ttf", 52)
+    font_g4_sub = get_font("C:/Windows/Fonts/segoeuib.ttf", 40)
+    draw.text((760, 105), "SKIN-FRIENDLY TOUCH", fill=(25, 25, 25), font=font_g4)
+    draw.text((760, 175), "SOFT & WEAR-RESISTANT", fill=(70, 70, 70), font=font_g4_sub)
+    im.save(out_path, quality=95)
+    return out_path
+
+def translate_in_place(gallery_dir: str, sku_dir: str, material: str = "Liquid Silicone", model_name: str = "Realme Neo8"):
     """
     Translates all images containing non-English text directly in-place,
     replacing the original file in \\gallery\\ and \\sku\\.
     """
+    is_tpu = "tpu" in material.lower()
+
     # 1. Process gallery images
     if os.path.exists(gallery_dir):
         for f in os.listdir(gallery_dir):
             if not f.lower().endswith(('.jpg', '.jpeg', '.png', '.webp')):
                 continue
             path = os.path.join(gallery_dir, f)
-            if "01" in f:
-                translate_top_banner_shelf(path, path)
-                print(f"    [✓] In-place translated showcase: {f}")
-            elif "05" in f:
-                print(f"    [i] Skipped clean image (no text): {f}")
+            if is_tpu:
+                if "01" in f:
+                    translate_tpu_gallery_01(path, path, model_name=model_name)
+                    print(f"    [✓] In-place translated TPU showcase: {f}")
+                elif "02" in f:
+                    translate_tpu_gallery_02(path, path)
+                    print(f"    [✓] In-place translated TPU gallery: {f}")
+                elif "03" in f:
+                    translate_tpu_gallery_03(path, path)
+                    print(f"    [✓] In-place translated TPU gallery: {f}")
+                elif "04" in f:
+                    translate_tpu_gallery_04(path, path)
+                    print(f"    [✓] In-place translated TPU gallery: {f}")
+                else:
+                    print(f"    [i] Skipped clean image (no text overlay): {f}")
             else:
-                translate_top_banner_colored(path, path)
-                print(f"    [✓] In-place translated gallery: {f}")
+                if "01" in f:
+                    translate_top_banner_shelf(path, path)
+                    print(f"    [✓] In-place translated showcase: {f}")
+                elif "05" in f:
+                    print(f"    [i] Skipped clean image (no text): {f}")
+                else:
+                    translate_top_banner_colored(path, path)
+                    print(f"    [✓] In-place translated gallery: {f}")
 
     # 2. Process SKU images
     if os.path.exists(sku_dir):
@@ -170,9 +260,13 @@ def translate_in_place(gallery_dir: str, sku_dir: str):
             if not f.lower().endswith(('.jpg', '.jpeg', '.png', '.webp')):
                 continue
             path = os.path.join(sku_dir, f)
-            if "-CL-" in f or "Transparent" in f:
-                translate_side_banner_blue(path, path)
-                print(f"    [✓] In-place translated clear SKU: {f}")
+            if is_tpu:
+                # TPU covers are high-res studio photos on clean retail box with English title
+                print(f"    [i] Clean studio SKU image verified: {f}")
             else:
-                translate_top_banner_colored(path, path)
-                print(f"    [✓] In-place translated colored SKU: {f}")
+                if "-CL-" in f or "Transparent" in f:
+                    translate_side_banner_blue(path, path)
+                    print(f"    [✓] In-place translated clear SKU: {f}")
+                else:
+                    translate_top_banner_colored(path, path)
+                    print(f"    [✓] In-place translated colored SKU: {f}")

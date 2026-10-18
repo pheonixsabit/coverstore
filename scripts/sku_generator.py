@@ -92,13 +92,13 @@ COLOR_MAP = [
 
 # Print / Finish Abbreviations
 PRINT_MAP = [
-    (r'print|pattern|painting|cartoon|anime|floral|flower|art|drawing', 'P'),
-    (r'gradient|aurora|holographic', 'G'),
-    (r'electroplated|mirror|plating', 'E'),
-    (r'matte|frosted', 'M'),
-    (r'carbon|texture|textured', 'T'),
-    (r'transparent|clear', 'C'),
-    (r'solid|cube|simple|straight edge|plain|pure', 'S'),
+    (r'\b(?:print|printed|printing|pattern|painting|cartoon|anime|floral|flower|art|drawing)\b', 'P'),
+    (r'\b(?:gradient|aurora|holographic)\b', 'G'),
+    (r'\b(?:electroplated|mirror|plating)\b', 'E'),
+    (r'\b(?:matte|frosted|magnetic)\b', 'M'),
+    (r'\b(?:carbon|texture|textured)\b', 'T'),
+    (r'\b(?:transparent|clear)\b', 'C'),
+    (r'\b(?:solid|cube|simple|straight edge|plain|pure)\b', 'S'),
 ]
 
 def abbreviate_model(model_name: str) -> str:
