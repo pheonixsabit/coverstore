@@ -10,15 +10,12 @@
 - Only process the exact MoveOn URL provided by the user.
 - Never crawl, pre-fetch, or spider any unprovided, recommended, or related links.
 
-## 3. Storage Hierarchy
+## 3. Storage Hierarchy (2-Folder Structure)
 - Plan PDF: `plan/plan.pdf`
 - Python Scripts: `scripts/`
 - Downloaded Assets: `[phone model]/[material]/`
-  - `original/`: Product showcase & gallery images (`original_01.jpg`, ...).
-  - `sku/`: Color/variant cover images named with the custom SKU format (`[SKU].jpg`).
-  - `translated/`: Images with non-English text translated to English (`translated_[SKU].jpg`).
-  - `cataloge/`: Clean original photos (no text) + translated photos with all duplicates removed.
-- Workspace Cataloge: `cataloge/` containing all unique ready-to-use catalog images across all models.
+  - `galary/`: Product showcase & gallery images (`galary_01.jpg`, `galary_02.jpg`, ...). Any non-English text is translated in-place directly replacing the original picture.
+  - `sku/`: Color/variant cover images named with the custom SKU format (`[SKU].jpg`, e.g., `RN8-SIL-WT-S.jpg`). Any non-English text is translated in-place directly replacing the original picture.
 
 ## 4. Custom SKU Generation Standard
 - Format: `[model abbreviation]-[material abbreviation]-[color abbreviation]-[print abbreviation]`

@@ -8,13 +8,16 @@ def get_font(font_path: str, size: int):
     except Exception:
         return ImageFont.load_default()
 
-def translate_top_banner_shelf(img_path: str, out_path: str):
+def translate_top_banner_shelf(img_path: str, out_path: Optional[str] = None):
     """
-    Translates product gallery images on white/gray backdrop (e.g. original_01):
+    Translates product gallery images on white/gray backdrop (e.g. galary_01.jpg):
     Replaces Chinese top banner with clean English typography:
     - OFFICIAL MATCHING CASE
     - ANTI-FINGERPRINT / LIQUID SILICONE
     """
+    if out_path is None:
+        out_path = img_path
+
     im = Image.open(img_path).convert("RGBA")
     draw = ImageDraw.Draw(im)
     
@@ -50,12 +53,15 @@ def translate_top_banner_shelf(img_path: str, out_path: str):
     im.convert("RGB").save(out_path, quality=95)
     return out_path
 
-def translate_top_banner_colored(img_path: str, out_path: str):
+def translate_top_banner_colored(img_path: str, out_path: Optional[str] = None):
     """
     Translates colored case images with top text banner:
     - LIQUID SILICONE CASE
     - [DROP PROTECTION] [FULL CAMERA COVER]
     """
+    if out_path is None:
+        out_path = img_path
+
     im = Image.open(img_path).convert("RGBA")
     draw = ImageDraw.Draw(im)
     
@@ -95,12 +101,15 @@ def translate_top_banner_colored(img_path: str, out_path: str):
     im.convert("RGB").save(out_path, quality=95)
     return out_path
 
-def translate_side_banner_blue(img_path: str, out_path: str):
+def translate_side_banner_blue(img_path: str, out_path: Optional[str] = None):
     """
     Translates transparent cases with right-side blue gradient banner:
     - OFFICIAL CASE
     - Features & Specification pills
     """
+    if out_path is None:
+        out_path = img_path
+
     im = Image.open(img_path).convert("RGB")
     width, height = im.size
     
@@ -135,31 +144,35 @@ def translate_side_banner_blue(img_path: str, out_path: str):
     im.save(out_path, quality=95)
     return out_path
 
-def translate_directory_images(orig_dir: str, sku_dir: str, trans_dir: str):
+def translate_in_place(galary_dir: str, sku_dir: str):
     """
-    Translates all images in orig_dir and sku_dir that contain non-English banners,
-    saving the translated versions into trans_dir.
+    Translates all images containing non-English text directly in-place,
+    replacing the original file in \\galary\\ and \\sku\\.
     """
-    os.makedirs(trans_dir, exist_ok=True)
-    
-    # Process original images
-    if os.path.exists(orig_dir):
-        for f in os.listdir(orig_dir):
-            src = os.path.join(orig_dir, f)
-            dst = os.path.join(trans_dir, f"translated_{f}")
-            if "original_01" in f:
-                translate_top_banner_shelf(src, dst)
-            elif "original_05" in f:
-                continue  # Clean image, no translation needed
-            elif f.startswith("original_"):
-                translate_top_banner_colored(src, dst)
-                
-    # Process SKU images
+    # 1. Process galary images
+    if os.path.exists(galary_dir):
+        for f in os.listdir(galary_dir):
+            if not f.lower().endswith(('.jpg', '.jpeg', '.png', '.webp')):
+                continue
+            path = os.path.join(galary_dir, f)
+            if "01" in f:
+                translate_top_banner_shelf(path, path)
+                print(f"    [✓] In-place translated showcase: {f}")
+            elif "05" in f:
+                print(f"    [i] Skipped clean image (no text): {f}")
+            else:
+                translate_top_banner_colored(path, path)
+                print(f"    [✓] In-place translated gallery: {f}")
+
+    # 2. Process SKU images
     if os.path.exists(sku_dir):
         for f in os.listdir(sku_dir):
-            src = os.path.join(sku_dir, f)
-            dst = os.path.join(trans_dir, f"translated_{f}")
-            if "-CL-" in f or "Transparent" in f or "sku_09" in f:
-                translate_side_banner_blue(src, dst)
+            if not f.lower().endswith(('.jpg', '.jpeg', '.png', '.webp')):
+                continue
+            path = os.path.join(sku_dir, f)
+            if "-CL-" in f or "Transparent" in f:
+                translate_side_banner_blue(path, path)
+                print(f"    [✓] In-place translated clear SKU: {f}")
             else:
-                translate_top_banner_colored(src, dst)
+                translate_top_banner_colored(path, path)
+                print(f"    [✓] In-place translated colored SKU: {f}")
