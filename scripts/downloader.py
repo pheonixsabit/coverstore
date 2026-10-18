@@ -54,7 +54,11 @@ def git_commit_and_push(commit_msg: str, cwd: str = WORKSPACE_ROOT) -> bool:
         subprocess.run([git_bin, "commit", "-m", commit_msg], cwd=cwd, check=True)
 
         print("    [*] Pushing to origin main...")
-        subprocess.run([git_bin, "push", "origin", "main"], cwd=cwd, check=True)
+        push_proc = subprocess.run([git_bin, "push", "origin", "main"], cwd=cwd)
+        if push_proc.returncode != 0:
+            print("    [*] Remote is ahead, integrating changes with --rebase --autostash...")
+            subprocess.run([git_bin, "pull", "--rebase", "--autostash", "origin", "main"], cwd=cwd, check=True)
+            subprocess.run([git_bin, "push", "origin", "main"], cwd=cwd, check=True)
         print("    [✓] Successfully committed and pushed to GitHub!")
         return True
     except subprocess.CalledProcessError as e:
