@@ -159,7 +159,7 @@ def translate_directory_images(orig_dir: str, sku_dir: str, trans_dir: str):
         for f in os.listdir(sku_dir):
             src = os.path.join(sku_dir, f)
             dst = os.path.join(trans_dir, f"translated_{f}")
-            if "Transparent" in f or "sku_09" in f:
+            if "-CL-" in f or "Transparent" in f or "sku_09" in f:
                 translate_side_banner_blue(src, dst)
-            elif f.startswith("sku_"):
+            else:
                 translate_top_banner_colored(src, dst)

@@ -14,6 +14,15 @@
 - Plan PDF: `plan/plan.pdf`
 - Python Scripts: `scripts/`
 - Downloaded Assets: `[phone model]/[material]/`
-  - `original/`: Product showcase & gallery images.
-  - `sku/`: Color/variant cover images for the selected model.
-  - `translated/`: Images with non-English text translated to English.
+  - `original/`: Product showcase & gallery images (`original_01.jpg`, ...).
+  - `sku/`: Color/variant cover images named with the custom SKU format (`[SKU].jpg`).
+  - `translated/`: Images with non-English text translated to English (`translated_[SKU].jpg`).
+
+## 4. Custom SKU Generation Standard
+- Format: `[model abbreviation]-[material abbreviation]-[color abbreviation]-[print abbreviation]`
+- Example: `RN8-SIL-WT-S`
+- Components:
+  - **Phone Model**: e.g., `RN8` (Realme Neo8), `IP15PM` (iPhone 15 Pro Max), `S24U` (Galaxy S24 Ultra).
+  - **Material**: e.g., `SIL` (Liquid Silicone / Silicone), `GLS` (Glass), `TPU` (TPU), `LTH` (Leather), `PC` (Hard PC).
+  - **Color**: e.g., `WT` (Antique White), `BK` (Classic Black), `PR` (Grass Purple), `GN` (Dark Night Green), `BL` (Royal Blue), `GY` (Lavender Gray), `RD` (Camellia Red), `TL` (Light Teal), `CL` (Transparent/Clear).
+  - **Print / Finish**: e.g., `S` (Solid / Cube / Plain), `P` (Printed / Pattern / Graphic), `G` (Gradient), `E` (Electroplated / Mirror), `C` (Clear).

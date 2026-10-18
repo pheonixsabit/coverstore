@@ -16,6 +16,7 @@ if sys.platform == "win32":
 from moveon_client import MoveOnClient, sanitize_filename
 from material_detector import detect_material
 from translate_helper import translate_directory_images
+from sku_generator import generate_sku
 
 WORKSPACE_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 
@@ -174,11 +175,11 @@ def main():
                 continue
             downloaded_images.add(img_url)
 
-            label = sanitize_filename(sku.get('variant_label', f"variant_{idx}"))
+            sku_code = generate_sku(model_name, material, sku.get('variant_label', ''), title)
             ext = os.path.splitext(img_url.split('?')[0])[-1] or ".jpg"
-            dest_file = os.path.join(sku_dir, f"sku_{idx:02d}_{label[:30]}{ext}")
+            dest_file = os.path.join(sku_dir, f"{sku_code}{ext}")
             download_file(img_url, dest_file)
-            print(f"    [+] Saved: {dest_file}")
+            print(f"    [+] Saved SKU: {sku_code} -> {dest_file}")
 
         # Translate non-English images -> \translated\
         print(f"\n[*] Translating non-English text to English into \\translated\\...")
