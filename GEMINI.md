@@ -14,7 +14,7 @@
 - Plan PDF: `plan/plan.pdf`
 - Python Scripts: `scripts/`
 - Downloaded Assets: `[phone model]/[material]/`
-  - `galary/`: Product showcase & gallery images (`galary_01.jpg`, `galary_02.jpg`, ...). Any non-English text is translated in-place directly replacing the original picture.
+  - `gallery/`: Product showcase & gallery images (`gallery_01.jpg`, `gallery_02.jpg`, ...). Any non-English text is translated in-place directly replacing the original picture.
   - `sku/`: Color/variant cover images named with the custom SKU format (`[SKU].jpg`, e.g., `RN8-SIL-WT-S.jpg`). Any non-English text is translated in-place directly replacing the original picture.
 
 ## 4. Custom SKU Generation Standard

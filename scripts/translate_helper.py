@@ -144,17 +144,17 @@ def translate_side_banner_blue(img_path: str, out_path: Optional[str] = None):
     im.save(out_path, quality=95)
     return out_path
 
-def translate_in_place(galary_dir: str, sku_dir: str):
+def translate_in_place(gallery_dir: str, sku_dir: str):
     """
     Translates all images containing non-English text directly in-place,
-    replacing the original file in \\galary\\ and \\sku\\.
+    replacing the original file in \\gallery\\ and \\sku\\.
     """
-    # 1. Process galary images
-    if os.path.exists(galary_dir):
-        for f in os.listdir(galary_dir):
+    # 1. Process gallery images
+    if os.path.exists(gallery_dir):
+        for f in os.listdir(gallery_dir):
             if not f.lower().endswith(('.jpg', '.jpeg', '.png', '.webp')):
                 continue
-            path = os.path.join(galary_dir, f)
+            path = os.path.join(gallery_dir, f)
             if "01" in f:
                 translate_top_banner_shelf(path, path)
                 print(f"    [✓] In-place translated showcase: {f}")

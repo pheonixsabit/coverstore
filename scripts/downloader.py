@@ -133,12 +133,12 @@ def main():
         model_name = model_meta['clean_name']
         model_clean = sanitize_filename(model_name)
         
-        # Build strictly 2 folder paths: \galary and \sku
+        # Build strictly 2 folder paths: \gallery and \sku
         base_dir = os.path.join(WORKSPACE_ROOT, model_clean, material_clean)
-        galary_dir = os.path.join(base_dir, "galary")
+        gallery_dir = os.path.join(base_dir, "gallery")
         sku_dir = os.path.join(base_dir, "sku")
 
-        os.makedirs(galary_dir, exist_ok=True)
+        os.makedirs(gallery_dir, exist_ok=True)
         os.makedirs(sku_dir, exist_ok=True)
 
         print(f"\n" + "-"*60)
@@ -146,11 +146,11 @@ def main():
         print(f"Target Directory: {base_dir}")
         print("-"*60)
 
-        # Download Gallery Images -> \galary\
-        print(f"[*] Downloading {len(gallery_images)} gallery images into \\galary\\...")
+        # Download Gallery Images -> \gallery\
+        print(f"[*] Downloading {len(gallery_images)} gallery images into \\gallery\\...")
         for idx, img_url in enumerate(gallery_images, 1):
             ext = os.path.splitext(img_url.split('?')[0])[-1] or ".jpg"
-            dest_file = os.path.join(galary_dir, f"galary_{idx:02d}{ext}")
+            dest_file = os.path.join(gallery_dir, f"gallery_{idx:02d}{ext}")
             download_file(img_url, dest_file)
             print(f"    [+] Saved: {dest_file}")
 
@@ -180,11 +180,11 @@ def main():
             print(f"    [+] Saved SKU: {sku_code} -> {dest_file}")
 
         # In-place translation: replace original non-English images directly
-        print(f"\n[*] In-place translating non-English images in \\galary\\ and \\sku\\...")
-        translate_in_place(galary_dir, sku_dir)
+        print(f"\n[*] In-place translating non-English images in \\gallery\\ and \\sku\\...")
+        translate_in_place(gallery_dir, sku_dir)
 
         print(f"\n[✓] Completed model [{model_clean}]:")
-        print(f"    Galary Images:  {len(os.listdir(galary_dir))} in {galary_dir}")
+        print(f"    Gallery Images: {len(os.listdir(gallery_dir))} in {gallery_dir}")
         print(f"    SKU Images:     {len(os.listdir(sku_dir))} in {sku_dir}")
 
     print("\n" + "="*60)
