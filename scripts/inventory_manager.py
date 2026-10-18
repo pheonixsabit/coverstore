@@ -448,7 +448,8 @@ def append_downloaded_product(
             for rs in product_info.get("raw_data", {}).get("variation", {}).get("skus", {}).get("data", []):
                 if str(rs.get("id")) == str(sku.get("id")):
                     try:
-                        sku_weight = float(rs.get("freight", {}).get("single_sku_weight", 0.0))
+                        freight_dict = rs.get("freight") or {}
+                        sku_weight = float(freight_dict.get("single_sku_weight", 0.0) or 0.0)
                     except Exception:
                         pass
                     break

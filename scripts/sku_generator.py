@@ -49,6 +49,17 @@ MODEL_RULES = [
     (r'huawei\s*pura\s*(\d+)\s*ultra', r'P\1U'),
     (r'huawei\s*pura\s*(\d+)\s*pro', r'P\1P'),
     (r'huawei\s*pura\s*(\d+)', r'P\1'),
+    (r'honor\s*x(\d+)\s*pro\s*max', r'HX\1PM'),
+    (r'honor\s*x(\d+)\s*promax', r'HX\1PM'),
+    (r'honor\s*x(\d+)\s*pro', r'HX\1P'),
+    (r'honor\s*x(\d+)\s*gt', r'HX\1GT'),
+    (r'honor\s*x(\d+)\s*i\+?', r'HX\1I'),
+    (r'honor\s*x(\d+)', r'HX\1'),
+    (r'honor\s*magic\s*(\d+)\s*pro', r'HM\1P'),
+    (r'honor\s*magic\s*(\d+)', r'HM\1'),
+    (r'honor\s*(\d+)\s*lite', r'H\1L'),
+    (r'honor\s*(\d+)\s*pro', r'H\1P'),
+    (r'honor\s*(\d+)', r'H\1'),
 ]
 
 # Material Abbreviations
