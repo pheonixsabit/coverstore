@@ -216,12 +216,66 @@ def translate_tpu_gallery_04(img_path: str, out_path: Optional[str] = None):
     im.save(out_path, quality=95)
     return out_path
 
+def translate_moire_gallery_01(img_path: str, out_path: Optional[str] = None):
+    """Translates Honor 600 Moiré case showcase gallery_01.jpg in-place."""
+    if out_path is None:
+        out_path = img_path
+    im = Image.open(img_path).convert("RGBA")
+    draw = ImageDraw.Draw(im)
+
+    # Top right text replacement: cover [505, 40, 795, 270] with dark tone
+    draw.rectangle([505, 40, 795, 270], fill=(15, 15, 18, 255))
+    font_title = get_font("C:/Windows/Fonts/arialbd.ttf", 36)
+    font_sub = get_font("C:/Windows/Fonts/segoeuib.ttf", 22)
+
+    draw.text((520, 65), "MINIMALIST", fill=(255, 255, 255, 255), font=font_title)
+    draw.text((520, 115), "MOIRÉ DESIGN", fill=(255, 255, 255, 255), font=font_title)
+
+    # Skin feel pill
+    draw.rounded_rectangle([520, 180, 780, 230], radius=16, fill=(210, 45, 45, 255))
+    draw.text((535, 190), "SKIN-FRIENDLY FEEL", fill=(255, 255, 255, 255), font=font_sub)
+
+    # Bottom left badges
+    draw.rectangle([17, 618, 215, 690], fill=(210, 45, 45, 255))
+    draw.text((25, 638), "ANTI-FINGERPRINT", fill=(255, 255, 255, 255), font=font_sub)
+
+    draw.rectangle([16, 698, 215, 769], fill=(30, 90, 200, 255))
+    draw.text((25, 718), "SWEAT-RESISTANT", fill=(255, 255, 255, 255), font=font_sub)
+
+    im.convert("RGB").save(out_path, quality=95)
+    return out_path
+
+def translate_moire_sku(img_path: str, color_name: str, out_path: Optional[str] = None):
+    """Translates Honor 600 Moiré SKU image by replacing bottom right Chinese color label."""
+    if out_path is None:
+        out_path = img_path
+    im = Image.open(img_path).convert("RGBA")
+    draw = ImageDraw.Draw(im)
+
+    font = get_font("C:/Windows/Fonts/arialbd.ttf", 20)
+    clean_label = color_name.replace("Built-in magnetic suction - ", "").replace("Built-in magnetic suction-", "").strip().upper()
+
+    bbox = draw.textbbox((0, 0), clean_label, font=font)
+    text_w = bbox[2] - bbox[0]
+    pill_w = max(text_w + 26, 150)
+    pill_right = 780
+    pill_left = pill_right - pill_w
+    pill_top = 720
+    pill_bottom = 770
+
+    draw.rounded_rectangle([pill_left, pill_top, pill_right, pill_bottom], radius=12, fill=(18, 18, 22, 235), outline=(70, 70, 75, 255), width=1)
+    draw.text((pill_left + 13, pill_top + 13), clean_label, fill=(245, 245, 245, 255), font=font)
+
+    im.convert("RGB").save(out_path, quality=95)
+    return out_path
+
 def translate_in_place(gallery_dir: str, sku_dir: str, material: str = "Liquid Silicone", model_name: str = "Realme Neo8"):
     """
     Translates all images containing non-English text directly in-place,
     replacing the original file in \\gallery\\ and \\sku\\.
     """
     is_tpu = "tpu" in material.lower()
+    is_moire = "honor" in model_name.lower() or "moire" in material.lower() or "moire" in gallery_dir.lower()
 
     # 1. Process gallery images
     if os.path.exists(gallery_dir):
@@ -229,7 +283,13 @@ def translate_in_place(gallery_dir: str, sku_dir: str, material: str = "Liquid S
             if not f.lower().endswith(('.jpg', '.jpeg', '.png', '.webp')):
                 continue
             path = os.path.join(gallery_dir, f)
-            if is_tpu:
+            if is_moire:
+                if "01" in f:
+                    translate_moire_gallery_01(path, path)
+                    print(f"    [✓] In-place translated Moiré showcase: {f}")
+                else:
+                    print(f"    [i] Skipped clean studio image: {f}")
+            elif is_tpu:
                 if "01" in f:
                     translate_tpu_gallery_01(path, path, model_name=model_name)
                     print(f"    [✓] In-place translated TPU showcase: {f}")
@@ -260,8 +320,20 @@ def translate_in_place(gallery_dir: str, sku_dir: str, material: str = "Liquid S
             if not f.lower().endswith(('.jpg', '.jpeg', '.png', '.webp')):
                 continue
             path = os.path.join(sku_dir, f)
-            if is_tpu:
-                # TPU covers are high-res studio photos on clean retail box with English title
+            if is_moire:
+                # Determine color name from SKU filename
+                col_name = "MOIRÉ"
+                if "-BK-" in f:
+                    col_name = "MOIRÉ BLACK"
+                elif "-BL-" in f:
+                    col_name = "GENTLEMAN BLUE"
+                elif "-GN-" in f:
+                    col_name = "DARK NIGHT GREEN"
+                elif "-RD-" in f:
+                    col_name = "CHARMING RED"
+                translate_moire_sku(path, col_name, path)
+                print(f"    [✓] In-place translated Moiré SKU ({col_name}): {f}")
+            elif is_tpu:
                 print(f"    [i] Clean studio SKU image verified: {f}")
             else:
                 if "-CL-" in f or "Transparent" in f:

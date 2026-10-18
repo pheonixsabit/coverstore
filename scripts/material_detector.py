@@ -67,6 +67,17 @@ def detect_material(product_info: Dict[str, Any], prompt_if_unknown: bool = True
                 if mat:
                     return mat
 
+    # Check raw_data specifications
+    raw_specs = product_info.get('raw_data', {}).get('specifications', {})
+    spec_data = raw_specs.get('data', []) if isinstance(raw_specs, dict) else []
+    for spec in spec_data:
+        label = spec.get('label', '').lower()
+        if any(k in label for k in ['material', 'texture', 'craft']):
+            val_name = spec.get('value', '')
+            mat = detect_material_from_text(val_name)
+            if mat:
+                return mat
+
     # If unrecognized and prompt is enabled
     if prompt_if_unknown:
         print("\n" + "="*50)
