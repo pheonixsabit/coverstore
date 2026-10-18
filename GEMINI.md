@@ -30,8 +30,8 @@
 - **Synchronization Files**: `inventory.csv` (UTF-8 with BOM) and `inventory.xlsx` (styled headers, auto-column widths, and live Excel formulas).
 - **Sync Script**: `scripts/inventory_manager.py` merges Google Sheet metadata, preserves historical unit logistics costs, and computes financial formulas.
 - **20-Column Schema**:
-  1. `Product Name`: Full product title.
-  2. `Product Code`: Custom SKU (`[model]-[material]-[color]-[finish]`).
+  1. `Product Code`: Custom SKU (`[model]-[material]-[color]-[finish]`).
+  2. `Product Name`: Full product title.
   3. `Material`: Identified material (e.g., Liquid Silicone).
   4. `Color`: Variant color name.
   5. `Phone Model`: Exact phone model name (e.g., Realme Neo8).

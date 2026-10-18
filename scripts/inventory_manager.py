@@ -28,8 +28,8 @@ GOOGLE_SHEET_XLSX_URL = "https://docs.google.com/spreadsheets/d/1cfLya8zgGBLZfor
 
 # 20-Column Financial Schema
 FIELDNAMES = [
-    "Product Name",       # A (1)
-    "Product Code",       # B (2)
+    "Product Code",       # A (1)
+    "Product Name",       # B (2)
     "Material",           # C (3)
     "Color",              # D (4)
     "Phone Model",        # E (5)
