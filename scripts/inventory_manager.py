@@ -285,16 +285,25 @@ def save_to_excel(rows: List[Dict[str, Any]], filepath: str = INVENTORY_XLSX_PAT
         ws.column_dimensions[col_letter].width = min(max(max_len + 3, 12), 48)
 
     # Save handling file locks gracefully
-    try:
-        wb.save(filepath)
-        print(f"[+] Successfully saved {len(rows)} records to Excel: {filepath}")
-    except PermissionError:
-        alt_path = os.path.splitext(filepath)[0] + "_updated.xlsx"
+    saved = False
+    for attempt in range(2):
         try:
-            wb.save(alt_path)
-            print(f"[!] Notice: '{os.path.basename(filepath)}' is currently open in Excel. Saved updated copy to '{os.path.basename(alt_path)}'.")
-        except Exception as e:
-            print(f"[!] Warning: Could not save Excel file: {e}")
+            wb.save(filepath)
+            print(f"[+] Successfully saved {len(rows)} records to Excel: {filepath}")
+            saved = True
+            break
+        except PermissionError:
+            if attempt == 0:
+                print(f"[!] Notice: '{os.path.basename(filepath)}' is locked (likely open in Excel). Retrying in 2 seconds...")
+                import time
+                time.sleep(2)
+            else:
+                alt_path = os.path.splitext(filepath)[0] + "_updated.xlsx"
+                try:
+                    wb.save(alt_path)
+                    print(f"[!] Notice: '{os.path.basename(filepath)}' is currently open in Excel. Saved updated copy to '{os.path.basename(alt_path)}'.")
+                except Exception as e:
+                    print(f"[!] Warning: Could not save Excel file: {e}")
 
 def sync_inventory():
     """Performs full sync: live sheet + historical cost preservation + Realme Neo8 append."""
@@ -487,6 +496,10 @@ def append_downloaded_product(
         save_to_csv(all_rows)
         save_to_excel(all_rows)
         print(f"[+] Appended {len(new_rows)} new SKU records to inventory.csv and inventory.xlsx")
+    else:
+        # Ensure inventory.xlsx has all records matching CSV
+        save_to_excel(existing_rows)
+        print(f"[+] All {len(existing_codes)} SKU records are already up to date in inventory.csv and inventory.xlsx")
 
 if __name__ == "__main__":
     sync_inventory()

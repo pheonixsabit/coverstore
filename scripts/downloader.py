@@ -3,6 +3,7 @@ import sys
 import argparse
 import urllib.request
 import re
+import subprocess
 from typing import List, Dict, Any
 
 # Ensure UTF-8 output on Windows consoles
@@ -20,6 +21,31 @@ from sku_generator import generate_sku
 from inventory_manager import append_downloaded_product
 
 WORKSPACE_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+
+def git_commit_and_push(commit_msg: str, cwd: str = WORKSPACE_ROOT) -> bool:
+    """Stages all changes, creates a descriptive commit, and pushes to GitHub main."""
+    try:
+        print("    [*] Staging changes (git add .)...")
+        subprocess.run(["git", "add", "."], cwd=cwd, check=True)
+
+        status_proc = subprocess.run(["git", "status", "--porcelain"], cwd=cwd, capture_output=True, text=True, check=True)
+        if not status_proc.stdout.strip():
+            print("    [*] Working tree clean. Nothing to commit.")
+            return True
+
+        print(f"    [*] Creating commit: {commit_msg}")
+        subprocess.run(["git", "commit", "-m", commit_msg], cwd=cwd, check=True)
+
+        print("    [*] Pushing to origin main...")
+        subprocess.run(["git", "push", "origin", "main"], cwd=cwd, check=True)
+        print("    [✓] Successfully committed and pushed to GitHub!")
+        return True
+    except subprocess.CalledProcessError as e:
+        print(f"    [!] Git operation failed: {e}")
+        return False
+    except Exception as e:
+        print(f"    [!] Error during git push: {e}")
+        return False
 
 def download_file(url: str, dest_path: str) -> bool:
     """Downloads an image from URL to local file path."""
@@ -89,6 +115,7 @@ def main():
     parser = argparse.ArgumentParser(description="Download phone cover images from MoveOn Global for specific phone model and material.")
     parser.add_argument("--url", "-u", type=str, help="MoveOn product URL")
     parser.add_argument("--china-delivery", "-c", type=float, default=None, help="China domestic delivery fee in BDT per unit")
+    parser.add_argument("--no-push", action="store_true", help="Skip automatic git commit and push to remote repository")
     args = parser.parse_args()
 
     url = args.url
@@ -205,8 +232,15 @@ def main():
     except Exception as e:
         print(f"[!] Warning: Failed to update inventory records: {e}")
 
+    # 5. Automatically stage, commit, and push to GitHub
+    if not args.no_push:
+        print("\n[*] Committing and pushing changes to GitHub...")
+        model_str = ", ".join(m['clean_name'] for m in selected_models)
+        commit_msg = f"feat: process {model_str} ({material_clean}) and update inventory"
+        git_commit_and_push(commit_msg)
+
     print("\n" + "="*60)
-    print("  ALL DOWNLOADS & TRANSLATIONS COMPLETED SUCCESSFULLY")
+    print("  ALL DOWNLOADS, TRANSLATIONS & SYNC COMPLETED SUCCESSFULLY")
     print("="*60)
 
 if __name__ == "__main__":
