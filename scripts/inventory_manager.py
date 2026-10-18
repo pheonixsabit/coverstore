@@ -26,28 +26,29 @@ INVENTORY_CSV_PATH = os.path.join(WORKSPACE_ROOT, "inventory.csv")
 INVENTORY_XLSX_PATH = os.path.join(WORKSPACE_ROOT, "inventory.xlsx")
 GOOGLE_SHEET_XLSX_URL = "https://docs.google.com/spreadsheets/d/1cfLya8zgGBLZfor3g7-ljrjw7lmo3J28uxkqiOONzhk/export?format=xlsx"
 
-# 20-Column Financial Schema
+# 21-Column Financial & Listing Schema
 FIELDNAMES = [
     "Product Code",       # A (1)
-    "Product Name",       # B (2)
-    "Material",           # C (3)
-    "Color",              # D (4)
-    "Phone Model",        # E (5)
-    "Warranty",           # F (6)
-    "source link",        # G (7)
-    "link",               # H (8)
-    "Local Image Path",   # I (9)
-    "product price",      # J (10)
-    "china delivery",     # K (11)
-    "air shipping",       # L (12)
-    "bd delivery",        # M (13)
-    "packaging",          # N (14)
-    "printing",           # O (15)
-    "other",              # P (16)
-    "landing cost",       # Q (17)
-    "margin",             # R (18)
-    "sell price",         # S (19)
-    "max discount"        # T (20)
+    "SEO Title",          # B (2)
+    "Product Name",       # C (3)
+    "Material",           # D (4)
+    "Color",              # E (5)
+    "Phone Model",        # F (6)
+    "Warranty",           # F (7)
+    "source link",        # H (8)
+    "link",               # I (9)
+    "Local Image Path",   # J (10)
+    "product price",      # K (11)
+    "china delivery",     # L (12)
+    "air shipping",       # M (13)
+    "bd delivery",        # N (14)
+    "packaging",          # O (15)
+    "printing",           # P (16)
+    "other",              # Q (17)
+    "landing cost",       # R (18)
+    "margin",             # S (19)
+    "sell price",         # T (20)
+    "max discount"        # U (21)
 ]
 
 NUMERIC_COST_FIELDS = [
@@ -126,6 +127,78 @@ def calculate_max_discount(sell_price: int) -> float:
         d = sp * 0.15
     return min(99.0, round(d, 2))
 
+def generate_seo_title(product_name: str, phone_model: str, material: str) -> str:
+    """
+    Generates a high-converting, SEO-optimized Daraz Bangladesh title
+    highlighting key selling points, phone model, and materials.
+    """
+    pn = (product_name or "").lower()
+    pm = (phone_model or "").strip()
+    mat = (material or "").lower()
+
+    # Realme Neo8 / Neo7 Heat Dissipation Hard PC
+    if "neo8" in pm.lower() and ("pc" in mat or "heat" in pn or "dissipation" in pn):
+        return "Magnetic Heat Dissipation Matte Back Cover for Realme GT Neo 8 / Neo 7 – Ultra Thin Breathable Cooling Case with Ring Magnet"
+
+    # Realme Neo8 Liquid Silicone
+    if "neo8" in pm.lower() and "silicone" in mat:
+        return "Luxury Liquid Silicone Shockproof Case for Realme GT Neo 8 – Skin-Friendly Soft Cube Anti-Drop Protective Back Cover"
+
+    # Realme Neo8 TPU Magnetic
+    if "neo8" in pm.lower() and "tpu" in mat:
+        return "Magnetic Ultra-Thin Shockproof Case for Realme GT Neo 8 – Slim Soft TPU Full Protection Back Cover"
+
+    # Honor 600 Lite / Honor X80i Hard PC
+    if ("600lite" in pm.lower() or "600 lite" in pm.lower() or "x80i" in pm.lower()) and "pc" in mat:
+        return "Micro-Matte Magnetic Shockproof Case for Honor 600 Lite / Honor X80i – Ultra-Slim Hard Protective Back Cover"
+
+    # Honor 600 Lite Silicone (Moiré)
+    if ("600lite" in pm.lower() or "600 lite" in pm.lower()) and "silicone" in mat:
+        return "Magnetic Liquid Silicone Case for Honor 600 Lite – Moiré Texture Anti-Scratch Soft Protective Back Cover"
+
+    # Honor X80i TPU with Stand / Airbag
+    if ("x80" in pm.lower() or "x70" in pn or "x60" in pn) and ("stand" in pn or "airbag" in pn or "tpu" in mat):
+        return "Invisible Kickstand Airbag Shockproof Case for Honor X80i / X70 / X60 Pro – Clear Hybrid TPU Protective Back Cover"
+
+    # Honor 600 / 600 Pro Skin
+    if "honor 600" in pm.lower() and "skin" in mat:
+        return f"Ultra-Thin Matte Skin Protective Case for {pm} – Lightweight Anti-Fingerprint Back Cover"
+
+    # Samsung Galaxy S26 Ultra
+    if "s26" in pm.lower() or "s24" in pm.lower() or "galaxy" in pm.lower():
+        if "spider" in pn:
+            return f"3D Spider Style Shockproof Silicone Case for {pm} – Printed Anti-Drop Protective Back Cover"
+        elif "bracket" in pn or "frame" in mat or "acrylic" in mat:
+            return f"Magnetic Invisible Stand Armor Case for {pm} – Heavy Duty Metal Lens Frame Hybrid Back Cover"
+        elif "wood" in pn or "wood" in mat or "pcs" in mat:
+            return f"Luxury Wood Grain Magnetic Case for {pm} – Slim Shockproof Hard Back Cover"
+        else:
+            return f"Luxury Magnetic Shockproof Protective Case for {pm} – Premium Armor Back Cover"
+
+    # iPhone Models
+    if "iphone" in pm.lower():
+        if "tpu" in mat:
+            return f"Magnetic Clear Shockproof TPU Case with Lens Film for {pm} – Full Protection Slim Soft Cover"
+        elif "acrylic" in mat or "acrylic" in pn:
+            return f"Luxury Magnetic Clear Acrylic Case for {pm} – Anti-Yellow Shockproof Hard Hybrid Back Cover"
+        elif "lens" in pn or "film" in pn or "pcs" in mat:
+            return f"Ultra-Slim Matte Hard Case with Camera Lens Protector for {pm} – Luxury Anti-Scratch Protective Back Cover"
+        else:
+            return f"Luxury Magnetic Shockproof Protective Case for {pm} – Slim Armor Back Cover"
+
+    # Redmi Turbo 4 / Turbo 4 Pro
+    if "turbo" in pm.lower() or "redmi" in pm.lower():
+        if "glass" in mat or "glass" in pn:
+            return f"Luxury 9H Tempered Glass Back Cover for {pm} – Glossy Anti-Scratch Armor Protective Case"
+        elif "mecha" in pn or "acrylic" in mat:
+            return f"Mecha Armor Shockproof Matte Case for {pm} – Heavy Duty Acrylic Bumper Back Cover"
+        else:
+            return f"Shockproof Matte Protective Back Cover for {pm} – Slim Armor Case"
+
+    # Generic Fallback
+    mat_clean = material.replace("PCs", "Hard PC").strip()
+    return f"Luxury {mat_clean} Shockproof Protective Back Cover for {pm} – Ultra-Slim Anti-Drop Case"
+
 def fetch_live_google_sheet_data() -> List[Dict[str, Any]]:
     """
     Downloads the full Google Sheet workbook as XLSX and merges metadata from Sheet1
@@ -154,6 +227,10 @@ def fetch_live_google_sheet_data() -> List[Dict[str, Any]]:
                 sku_code = row_dict.get("Product Code", "")
                 phone_model = row_dict.get("Phone Model", "")
                 material = row_dict.get("Material", "")
+
+                # Ensure SEO Title is populated
+                if not row_dict.get("SEO Title"):
+                    row_dict["SEO Title"] = generate_seo_title(row_dict.get("Product Name", ""), phone_model, material)
 
                 # Check if local image path exists
                 local_img = ""
