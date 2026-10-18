@@ -25,3 +25,22 @@
   - **Material**: e.g., `SIL` (Liquid Silicone / Silicone), `GLS` (Glass), `TPU` (TPU), `LTH` (Leather), `PC` (Hard PC).
   - **Color**: e.g., `WT` (Antique White), `BK` (Classic Black), `PR` (Grass Purple), `GN` (Dark Night Green), `BL` (Royal Blue), `GY` (Lavender Gray), `RD` (Camellia Red), `TL` (Light Teal), `CL` (Transparent/Clear).
   - **Print / Finish**: e.g., `S` (Solid / Cube / Plain), `P` (Printed / Pattern / Graphic), `G` (Gradient), `E` (Electroplated / Mirror), `C` (Clear).
+
+## 5. Inventory Dataset Standard (Google Sheets Sync)
+- **Synchronization Files**: `inventory.csv` (UTF-8 with BOM) and `inventory.xlsx` (formatted with styled headers and auto-column widths).
+- **Sync Script**: `scripts/inventory_manager.py` fetches the live Google Sheet, enriches existing rows with live MoveOn pricing, stock, weight, and image URLs, and appends newly downloaded products.
+- **13-Column Schema**:
+  1. `Product Name`: Full product title.
+  2. `Product Code`: Custom SKU (`[model]-[material]-[color]-[finish]`).
+  3. `Material`: Identified material (e.g., Liquid Silicone).
+  4. `Color`: Variant color name.
+  5. `Phone Model`: Exact phone model name (e.g., Realme Neo8).
+  6. `Warranty`: Warranty status (`No` / `Yes`).
+  7. `source link`: MoveOn base URL or source label.
+  8. `link`: Exact product link.
+  9. `Price (CNY)`: Dropship/wholesale price in CNY.
+  10. `Stock`: Available inventory stock count.
+  11. `Weight (kg)`: Single SKU freight weight in kg.
+  12. `Image URL`: Remote CDN image link.
+  13. `Local Image Path`: Relative local filepath to the variant image (e.g., `Realme Neo8/Liquid Silicone/sku/RN8-SIL-WT-S.jpg`).
+- **Automatic Sync**: Whenever `scripts/downloader.py` finishes downloading and translating assets, it automatically invokes `append_downloaded_product` to append newly processed variants to `inventory.csv` and `inventory.xlsx`.

@@ -17,6 +17,7 @@ from moveon_client import MoveOnClient, sanitize_filename
 from material_detector import detect_material
 from translate_helper import translate_in_place
 from sku_generator import generate_sku
+from inventory_manager import append_downloaded_product
 
 WORKSPACE_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 
@@ -186,6 +187,13 @@ def main():
         print(f"\n[✓] Completed model [{model_clean}]:")
         print(f"    Gallery Images: {len(os.listdir(gallery_dir))} in {gallery_dir}")
         print(f"    SKU Images:     {len(os.listdir(sku_dir))} in {sku_dir}")
+
+    # 4. Automatically sync/append to inventory records (inventory.csv and inventory.xlsx)
+    print("\n[*] Updating inventory records (inventory.csv / inventory.xlsx)...")
+    try:
+        append_downloaded_product(product_info, selected_models, material, url)
+    except Exception as e:
+        print(f"[!] Warning: Failed to update inventory records: {e}")
 
     print("\n" + "="*60)
     print("  ALL DOWNLOADS & TRANSLATIONS COMPLETED SUCCESSFULLY")
