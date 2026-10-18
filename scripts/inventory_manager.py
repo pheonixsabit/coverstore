@@ -427,10 +427,24 @@ def append_downloaded_product(
 
             price_dict = sku.get("price", {})
             dropship = price_dict.get("dropship", {})
-            price_val = dropship.get("offer_price") or price_dict.get("original") or 34.0935
-            prod_price = round(float(price_val) * 1.1703, 2)
+            # Extract SKU weight and compute air shipping: weight * 2 * 780 BDT/kg
+            sku_weight = 0.0
+            for rs in product_info.get("raw_data", {}).get("variation", {}).get("skus", {}).get("data", []):
+                if str(rs.get("id")) == str(sku.get("id")):
+                    try:
+                        sku_weight = float(rs.get("freight", {}).get("single_sku_weight", 0.0))
+                    except Exception:
+                        pass
+                    break
 
-            landing = calculate_landing_cost(prod_price, china_del, air_ship, bd_del, packaging, printing, other)
+            if air_ship is not None and air_ship > 0:
+                sku_air_ship = air_ship
+            elif sku_weight > 0:
+                sku_air_ship = round(sku_weight * 2.0 * 780.0, 2)
+            else:
+                sku_air_ship = 50.0
+
+            landing = calculate_landing_cost(prod_price, china_del, sku_air_ship, bd_del, packaging, printing, other)
             margin_val = calculate_margin(landing)
             sell_p = calculate_sell_price(margin_val)
             max_d = calculate_max_discount(sell_p)
@@ -449,7 +463,7 @@ def append_downloaded_product(
                 "Local Image Path": local_path,
                 "product price": prod_price,
                 "china delivery": china_del,
-                "air shipping": air_ship,
+                "air shipping": sku_air_ship,
                 "bd delivery": bd_del,
                 "packaging": packaging,
                 "printing": printing,

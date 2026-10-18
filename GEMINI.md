@@ -39,13 +39,13 @@
   7. `source link`: MoveOn base URL or source label.
   8. `link`: Exact product link.
   9. `Local Image Path`: Relative local filepath to the variant image (e.g., `Realme Neo8/Liquid Silicone/sku/RN8-SIL-WT-S.jpg`).
-  10. `product price`: Base unit procurement price in BDT.
-  11. `china delivery`: China domestic logistics share per unit.
-  12. `air shipping`: International air freight share per unit.
-  13. `bd delivery`: Bangladesh local delivery share per unit.
+  10. `product price`: Base unit procurement price in BDT (collected from MoveOn dropship price * 1.1703).
+  11. `china delivery`: China domestic logistics share per unit (manual input by user, default 10.0 BDT).
+  12. `air shipping`: International air freight share per unit (`weight x 2 x 780/kg`, default 50.0 BDT).
+  13. `bd delivery`: Bangladesh local delivery share per unit (fixed 5.0 BDT).
   14. `packaging`: Packaging material cost (fixed 11.5 Taka).
   15. `printing`: Labeling/printing cost (fixed 20.0 Taka).
-  16. `other`: Miscellaneous expenses.
+  16. `other`: Miscellaneous expenses (default 0.0 BDT).
   17. `landing cost`: Total unit cost: `=SUM(J{r}:P{r})`.
   18. `margin`: Dynamic markup: `=IF(Q{r}<300, Q{r}*1.4, IF(Q{r}<400, Q{r}*1.33, Q{r}*1.25))`.
   19. `sell price`: Rounding ending in `00` (<25), `49` (25–74), or `99` (75–99): `=INT(R{r}/100)*100 + IF(MOD(ROUND(R{r},0),100)<25, 0, IF(MOD(ROUND(R{r},0),100)<=74, 49, 99))`.

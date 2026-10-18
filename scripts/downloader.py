@@ -191,7 +191,13 @@ def main():
     # 4. Automatically sync/append to inventory records (inventory.csv and inventory.xlsx)
     print("\n[*] Updating inventory records (inventory.csv / inventory.xlsx)...")
     try:
-        append_downloaded_product(product_info, selected_models, material, url)
+        china_del_str = input("Enter China domestic delivery fee in BDT per unit [default 10.0]: ").strip()
+        china_delivery = float(china_del_str) if china_del_str else 10.0
+    except Exception:
+        china_delivery = 10.0
+
+    try:
+        append_downloaded_product(product_info, selected_models, material, url, china_del=china_delivery)
     except Exception as e:
         print(f"[!] Warning: Failed to update inventory records: {e}")
 
