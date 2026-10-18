@@ -50,9 +50,33 @@ FIELDNAMES = [
     "max discount"        # T (20)
 ]
 
+NUMERIC_COST_FIELDS = [
+    "product price",
+    "china delivery",
+    "air shipping",
+    "bd delivery",
+    "packaging",
+    "printing",
+    "other",
+]
+
+def clean_float(val: Any, default: float = 0.0) -> float:
+    """Safely converts value to float, handling strings with commas, spaces, or currency symbols."""
+    if val is None:
+        return default
+    if isinstance(val, (int, float)):
+        return float(val)
+    val_str = str(val).strip().replace(",", "").replace("$", "").replace("৳", "")
+    if not val_str:
+        return default
+    try:
+        return float(val_str)
+    except (ValueError, TypeError):
+        return default
+
 def calculate_landing_cost(product_price: float, china_del: float, air_ship: float, bd_del: float, packaging: float = 11.5, printing: float = 20.0, other: float = 0.0) -> float:
     """Calculates landing cost as the sum of product price and all logistics/overhead expenses."""
-    return round(float(product_price or 0.0) + float(china_del or 0.0) + float(air_ship or 0.0) + float(bd_del or 0.0) + float(packaging or 0.0) + float(printing or 0.0) + float(other or 0.0), 2)
+    return round(clean_float(product_price) + clean_float(china_del) + clean_float(air_ship) + clean_float(bd_del) + clean_float(packaging, 11.5) + clean_float(printing, 20.0) + clean_float(other, 0.0), 2)
 
 def calculate_margin(landing_cost: float) -> float:
     """
@@ -208,6 +232,9 @@ def save_to_csv(rows: List[Dict[str, Any]], filepath: str = INVENTORY_CSV_PATH):
 def save_to_excel(rows: List[Dict[str, Any]], filepath: str = INVENTORY_XLSX_PATH):
     """Saves inventory rows to styled Excel workbook with live formulas for pricing columns."""
     wb = openpyxl.Workbook()
+    wb.calculation.calcMode = 'auto'
+    wb.calculation.fullCalcOnLoad = True
+    wb.calculation.forceFullCalc = True
     ws = wb.active
     ws.title = "Sheet1"
 
@@ -246,8 +273,10 @@ def save_to_excel(rows: List[Dict[str, Any]], filepath: str = INVENTORY_XLSX_PAT
                 row_vals.append(f"=INT(R{row_idx}/100)*100 + IF(MOD(ROUND(R{row_idx},0),100)<25, 0, IF(MOD(ROUND(R{row_idx},0),100)<=74, 49, 99))")
             elif k == "max discount":
                 row_vals.append(f"=IF(S{row_idx}<300, 0, MIN(99, IF(S{row_idx}<500, S{row_idx}*7%, IF(S{row_idx}<700, S{row_idx}*12%, S{row_idx}*15%))))")
+            elif k in NUMERIC_COST_FIELDS:
+                row_vals.append(clean_float(r.get(k)))
             else:
-                row_vals.append(r.get(k, ""))
+                row_vals.append(str(r.get(k, "") or ""))
 
         ws.append(row_vals)
         use_alt = (row_idx % 2 == 0)
@@ -276,10 +305,19 @@ def save_to_excel(rows: List[Dict[str, Any]], filepath: str = INVENTORY_XLSX_PAT
 
     # Auto-adjust column widths
     for col in ws.columns:
-        max_len = 0
         col_letter = get_column_letter(col[0].column)
+        col_name = str(ws.cell(row=1, column=col[0].column).value or '')
+        if col_name in ["landing cost", "margin", "sell price", "max discount"]:
+            ws.column_dimensions[col_letter].width = 16
+            continue
+        max_len = 0
         for cell in col:
-            val_str = str(cell.value or '')
+            val = cell.value
+            if val is None:
+                continue
+            val_str = str(val)
+            if val_str.startswith('='):
+                continue
             if len(val_str) > max_len:
                 max_len = len(val_str)
         ws.column_dimensions[col_letter].width = min(max(max_len + 3, 12), 48)
