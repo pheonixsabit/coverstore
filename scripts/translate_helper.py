@@ -252,19 +252,16 @@ def translate_moire_sku(img_path: str, color_name: str, out_path: Optional[str] 
     im = Image.open(img_path).convert("RGBA")
     draw = ImageDraw.Draw(im)
 
-    font = get_font("C:/Windows/Fonts/arialbd.ttf", 20)
+    font = get_font("C:/Windows/Fonts/arialbd.ttf", 18)
     clean_label = color_name.replace("Built-in magnetic suction - ", "").replace("Built-in magnetic suction-", "").strip().upper()
 
+    draw.rounded_rectangle([545, 715, 785, 775], radius=12, fill=(18, 18, 22, 255), outline=(70, 70, 75, 255), width=1)
     bbox = draw.textbbox((0, 0), clean_label, font=font)
-    text_w = bbox[2] - bbox[0]
-    pill_w = max(text_w + 26, 150)
-    pill_right = 780
-    pill_left = pill_right - pill_w
-    pill_top = 720
-    pill_bottom = 770
-
-    draw.rounded_rectangle([pill_left, pill_top, pill_right, pill_bottom], radius=12, fill=(18, 18, 22, 235), outline=(70, 70, 75, 255), width=1)
-    draw.text((pill_left + 13, pill_top + 13), clean_label, fill=(245, 245, 245, 255), font=font)
+    tw = bbox[2] - bbox[0]
+    th = bbox[3] - bbox[1]
+    cx = 545 + (240 - tw) / 2
+    cy = 715 + (60 - th) / 2 - 2
+    draw.text((cx, cy), clean_label, fill=(245, 245, 245, 255), font=font)
 
     im.convert("RGB").save(out_path, quality=95)
     return out_path

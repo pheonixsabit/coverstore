@@ -389,7 +389,7 @@ def append_downloaded_product(
     material: str,
     product_url: str,
     china_del: float = 10.0,
-    air_ship: float = 50.0,
+    air_ship: Optional[float] = None,
     bd_del: float = 5.0,
     packaging: float = 11.5,
     printing: float = 20.0,
@@ -435,7 +435,7 @@ def append_downloaded_product(
             if bracket_match:
                 color_name = bracket_match.group(1).title()
             else:
-                for prefix in ["Straight Edge New Model [", "Rubik's Cube Liquid Silicone", "Built-in magnetic tpu frosted soft shell", "anti-fingerprint - skin-friendly", "]"]:
+                for prefix in ["Straight Edge New Model [", "Rubik's Cube Liquid Silicone", "Built-in magnetic tpu frosted soft shell", "Built-in magnetic suction - ", "Built-in magnetic suction-", "anti-fingerprint - skin-friendly", "]"]:
                     color_name = color_name.replace(prefix, "")
                 color_name = color_name.strip(" []-").title()
 
@@ -453,10 +453,10 @@ def append_downloaded_product(
                         pass
                     break
 
-            if air_ship is not None and air_ship > 0:
-                sku_air_ship = air_ship
-            elif sku_weight > 0:
+            if sku_weight > 0:
                 sku_air_ship = round(sku_weight * 2.0 * 780.0, 2)
+            elif air_ship is not None and air_ship > 0:
+                sku_air_ship = air_ship
             else:
                 sku_air_ship = 50.0
 
