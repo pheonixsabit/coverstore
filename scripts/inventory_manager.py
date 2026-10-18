@@ -501,5 +501,28 @@ def append_downloaded_product(
         save_to_excel(existing_rows)
         print(f"[+] All {len(existing_codes)} SKU records are already up to date in inventory.csv and inventory.xlsx")
 
+def sync_csv_to_excel(csv_path: str = INVENTORY_CSV_PATH, xlsx_path: str = INVENTORY_XLSX_PATH) -> int:
+    """Reads inventory.csv and regenerates inventory.xlsx with styled headers and dynamic formulas."""
+    if not os.path.exists(csv_path):
+        print(f"[!] CSV file not found: {csv_path}")
+        return 0
+    with open(csv_path, "r", encoding="utf-8-sig") as f:
+        rows = list(csv.DictReader(f))
+    save_to_excel(rows, xlsx_path)
+    print(f"[✓] Successfully synced {len(rows)} records from {os.path.basename(csv_path)} to {os.path.basename(xlsx_path)}")
+    return len(rows)
+
 if __name__ == "__main__":
-    sync_inventory()
+    import argparse
+    parser = argparse.ArgumentParser(description="CoverStore Inventory Manager & Synchronizer")
+    parser.add_argument("--update-excel", "-u", action="store_true", help="Synchronize inventory.xlsx directly from inventory.csv")
+    parser.add_argument("--sync-live", "-s", action="store_true", help="Perform full live Google Sheet synchronization")
+    args = parser.parse_args()
+
+    if args.update_excel:
+        sync_csv_to_excel()
+    elif args.sync_live:
+        sync_inventory()
+    else:
+        # Default behavior: ensure Excel is up to date with CSV
+        sync_csv_to_excel()

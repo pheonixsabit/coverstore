@@ -16,10 +16,28 @@ if sys.platform == "win32":
 
 WORKSPACE_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 
+def get_git_binary() -> str:
+    """Finds git executable across PATH and known Windows locations."""
+    import shutil
+    git_bin = shutil.which("git")
+    if git_bin:
+        return git_bin
+    for candidate in [
+        r"C:\Program Files\Git\cmd\git.exe",
+        r"C:\Program Files\Git\bin\git.exe",
+        os.path.expandvars(r"%LOCALAPPDATA%\Programs\Git\cmd\git.exe"),
+        os.path.expandvars(r"%ProgramFiles%\Git\cmd\git.exe"),
+    ]:
+        if os.path.exists(candidate):
+            return candidate
+    return "git"
+
+GIT_BIN = get_git_binary()
+
 def run_git(cmd: list, cwd: str = WORKSPACE_ROOT) -> subprocess.CompletedProcess:
     """Executes a git command and returns CompletedProcess."""
     return subprocess.run(
-        ["git"] + cmd,
+        [GIT_BIN] + cmd,
         cwd=cwd,
         capture_output=True,
         text=True,
@@ -54,6 +72,13 @@ def perform_sync(branch: str = "main", remote: str = "origin") -> bool:
             print("    [✓] Remote is already up to date.")
         else:
             print(f"    [✓] Updated from remote:\n    {pull_output}")
+
+    # Step 1b: Synchronize inventory.xlsx with inventory.csv
+    try:
+        from inventory_manager import sync_csv_to_excel
+        sync_csv_to_excel()
+    except Exception as e:
+        print(f"    [!] Notice: Excel sync skipped: {e}")
 
     # Step 2: Check for uncommitted local changes
     status_res = run_git(["status", "--porcelain"])

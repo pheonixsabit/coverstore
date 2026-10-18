@@ -22,22 +22,39 @@ from inventory_manager import append_downloaded_product
 
 WORKSPACE_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 
+def get_git_binary() -> str:
+    """Finds git executable across PATH and known Windows locations."""
+    import shutil
+    git_bin = shutil.which("git")
+    if git_bin:
+        return git_bin
+    for candidate in [
+        r"C:\Program Files\Git\cmd\git.exe",
+        r"C:\Program Files\Git\bin\git.exe",
+        os.path.expandvars(r"%LOCALAPPDATA%\Programs\Git\cmd\git.exe"),
+        os.path.expandvars(r"%ProgramFiles%\Git\cmd\git.exe"),
+    ]:
+        if os.path.exists(candidate):
+            return candidate
+    return "git"
+
 def git_commit_and_push(commit_msg: str, cwd: str = WORKSPACE_ROOT) -> bool:
     """Stages all changes, creates a descriptive commit, and pushes to GitHub main."""
+    git_bin = get_git_binary()
     try:
         print("    [*] Staging changes (git add .)...")
-        subprocess.run(["git", "add", "."], cwd=cwd, check=True)
+        subprocess.run([git_bin, "add", "."], cwd=cwd, check=True)
 
-        status_proc = subprocess.run(["git", "status", "--porcelain"], cwd=cwd, capture_output=True, text=True, check=True)
+        status_proc = subprocess.run([git_bin, "status", "--porcelain"], cwd=cwd, capture_output=True, text=True, check=True)
         if not status_proc.stdout.strip():
             print("    [*] Working tree clean. Nothing to commit.")
             return True
 
         print(f"    [*] Creating commit: {commit_msg}")
-        subprocess.run(["git", "commit", "-m", commit_msg], cwd=cwd, check=True)
+        subprocess.run([git_bin, "commit", "-m", commit_msg], cwd=cwd, check=True)
 
         print("    [*] Pushing to origin main...")
-        subprocess.run(["git", "push", "origin", "main"], cwd=cwd, check=True)
+        subprocess.run([git_bin, "push", "origin", "main"], cwd=cwd, check=True)
         print("    [✓] Successfully committed and pushed to GitHub!")
         return True
     except subprocess.CalledProcessError as e:
