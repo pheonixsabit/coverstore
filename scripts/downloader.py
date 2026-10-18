@@ -17,6 +17,7 @@ from moveon_client import MoveOnClient, sanitize_filename
 from material_detector import detect_material
 from translate_helper import translate_directory_images
 from sku_generator import generate_sku
+from catalog_builder import build_cataloge
 
 WORKSPACE_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 
@@ -185,10 +186,17 @@ def main():
         print(f"\n[*] Translating non-English text to English into \\translated\\...")
         translate_directory_images(orig_dir, sku_dir, trans_dir)
 
+        # Build clean deduplicated cataloge -> \cataloge\
+        print(f"\n[*] Building clean catalog (original no text + translated, deduplicated)...")
+        cat_result = build_cataloge(base_dir, root_cataloge=True)
+        print(f"    [+] Cataloge generated: {cat_result['total_catalog_images']} unique images")
+        print(f"    [+] Duplicates removed: {len(cat_result['duplicates_removed'])}")
+
         print(f"\n[✓] Completed model [{model_clean}]:")
         print(f"    Original Images:   {len(os.listdir(orig_dir))} in {orig_dir}")
         print(f"    SKU Images:        {len(os.listdir(sku_dir))} in {sku_dir}")
         print(f"    Translated Images: {len(os.listdir(trans_dir))} in {trans_dir}")
+        print(f"    Cataloge Images:   {cat_result['total_catalog_images']} in {cat_result['catalog_dir']}")
 
     print("\n" + "="*60)
     print("  ALL DOWNLOADS & TRANSLATIONS COMPLETED SUCCESSFULLY")

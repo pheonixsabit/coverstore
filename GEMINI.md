@@ -17,6 +17,8 @@
   - `original/`: Product showcase & gallery images (`original_01.jpg`, ...).
   - `sku/`: Color/variant cover images named with the custom SKU format (`[SKU].jpg`).
   - `translated/`: Images with non-English text translated to English (`translated_[SKU].jpg`).
+  - `cataloge/`: Clean original photos (no text) + translated photos with all duplicates removed.
+- Workspace Cataloge: `cataloge/` containing all unique ready-to-use catalog images across all models.
 
 ## 4. Custom SKU Generation Standard
 - Format: `[model abbreviation]-[material abbreviation]-[color abbreviation]-[print abbreviation]`
