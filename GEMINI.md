@@ -51,3 +51,13 @@
   19. `sell price`: Rounding ending in `00` (<25), `49` (25–74), or `99` (75–99): `=INT(R{r}/100)*100 + IF(MOD(ROUND(R{r},0),100)<25, 0, IF(MOD(ROUND(R{r},0),100)<=74, 49, 99))`.
   20. `max discount`: Tiered ceiling discount formula: `=IF(S{r}<300, 0, MIN(99, IF(S{r}<500, S{r}*7%, IF(S{r}<700, S{r}*12%, S{r}*15%))))`.
 - **Automatic Sync**: Whenever `scripts/downloader.py` finishes downloading and translating assets, it automatically invokes `append_downloaded_product` to append newly processed variants with default financial figures to `inventory.csv` and `inventory.xlsx`.
+
+## 6. Multi-PC 20-Minute Auto-Sync Standard
+- **Multi-PC Operation**: The repository is actively operated across 2 separate workstations.
+- **Sync Cadence**: Synchronizes every 20 minutes aligned to standard clock boundaries (`:00`, `:20`, `:40` past the hour).
+- **Sync Engine**: `scripts/auto_sync.py` and `scripts/run_auto_sync.bat`.
+  - Automatically pulls remote changes with `--rebase --autostash` to integrate the other workstation's work safely.
+  - Stages all new and modified local assets and files (`git add .`).
+  - Creates a descriptive commit (`chore: auto-sync [hostname] [timestamp]`).
+  - Pushes directly to `origin main` to keep both PCs in continuous sync.
+
