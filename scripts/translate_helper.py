@@ -513,13 +513,88 @@ def translate_magnetic_matte_gallery_05(img_path: str, out_path: Optional[str] =
     im.save(out_path, quality=95)
     return out_path
 
+def translate_frosted_pc_gallery_01(img_path: str, out_path: Optional[str] = None):
+    """Translates Realme Neo8/Neo7 Frosted PC gallery_01 in-place."""
+    if out_path is None:
+        out_path = img_path
+    im = Image.open(img_path).convert("RGBA")
+    draw = ImageDraw.Draw(im)
+    bg = (175, 175, 175, 255)
+
+    # Title '磁吸磨砂壳': y=[250, 360], x=[540, 800]
+    draw.rectangle([540, 250, 800, 360], fill=bg)
+    font_title = get_font("C:/Windows/Fonts/arialbd.ttf", 36)
+    draw.text((560, 275), "MAGNETIC", fill=(255, 255, 255, 255), font=font_title)
+    draw.text((560, 315), "FROSTED", fill=(255, 255, 255, 255), font=font_title)
+
+    # Icon labels: y=[415, 455], x=[560, 800]
+    draw.rectangle([560, 415, 800, 455], fill=bg)
+    font_icon = get_font("C:/Windows/Fonts/segoeui.ttf", 13)
+    draw.text((580, 422), "FROSTED", fill=(255, 255, 255, 255), font=font_icon)
+    draw.text((670, 422), "DROP-PROOF", fill=(255, 255, 255, 255), font=font_icon)
+    draw.text((760, 422), "ANTI-SMUDGE", fill=(255, 255, 255, 255), font=font_icon)
+
+    # '适用于:' y=[480, 520], x=[570, 720]
+    draw.rectangle([570, 480, 720, 520], fill=bg)
+    font_comp = get_font("C:/Windows/Fonts/segoeuib.ttf", 22)
+    draw.text((585, 488), "COMPATIBLE:", fill=(255, 255, 255, 255), font=font_comp)
+
+    im.convert("RGB").save(out_path, quality=95)
+    return out_path
+
+def translate_frosted_pc_gallery_03(img_path: str, out_path: Optional[str] = None):
+    """Translates Realme Neo8/Neo7 raised camera frame gallery_03 in-place."""
+    if out_path is None:
+        out_path = img_path
+    im = Image.open(img_path).convert("RGBA")
+    draw = ImageDraw.Draw(im)
+
+    draw.rectangle([20, 20, 480, 250], fill=(236, 222, 205, 255))
+    font_h1 = get_font("C:/Windows/Fonts/arialbd.ttf", 36)
+    draw.text((35, 45), "RAISED CAMERA FRAME", fill=(255, 255, 255, 255), font=font_h1)
+    draw.text((35, 95), "LENS PROTECTION", fill=(255, 255, 255, 255), font=font_h1)
+
+    font_sub = get_font("C:/Windows/Fonts/segoeui.ttf", 16)
+    draw.text((35, 160), "Precision bezel design shields camera lenses", fill=(70, 60, 55, 255), font=font_sub)
+    draw.text((35, 185), "against scratches, drops, and everyday wear.", fill=(70, 60, 55, 255), font=font_sub)
+
+    im.convert("RGB").save(out_path, quality=95)
+    return out_path
+
+def translate_frosted_pc_sku(img_path: str, color_name: str, model_name: str = "Realme Neo8", out_path: Optional[str] = None):
+    """Translates Realme Neo8/Neo7 Frosted PC SKU image top banner in-place."""
+    if out_path is None:
+        out_path = img_path
+    im = Image.open(img_path).convert("RGBA")
+    draw = ImageDraw.Draw(im)
+
+    draw.rectangle([180, 20, 620, 150], fill=(246, 246, 246, 255))
+    font_title = get_font("C:/Windows/Fonts/arialbd.ttf", 30)
+    draw.text((215, 38), "FROSTED PC · MAGNETIC", fill=(25, 25, 25, 255), font=font_title)
+
+    font_p = get_font("C:/Windows/Fonts/arialbd.ttf", 15)
+    model_label = f"FOR {model_name.upper()}"
+    draw.rounded_rectangle([190, 95, 410, 138], radius=16, fill=(255, 255, 255, 255), outline=(220, 220, 225, 255), width=1)
+    draw.text((212, 107), model_label, fill=(30, 30, 35, 255), font=font_p)
+
+    clean_color = color_name.upper().strip()
+    bbox = draw.textbbox((0, 0), clean_color, font=font_p)
+    tw = bbox[2] - bbox[0]
+    cw = max(tw + 36, 130)
+    draw.rounded_rectangle([425, 95, 425 + cw, 138], radius=16, fill=(20, 20, 25, 255))
+    draw.text((425 + (cw - tw) / 2, 107), clean_color, fill=(255, 255, 255, 255), font=font_p)
+
+    im.convert("RGB").save(out_path, quality=95)
+    return out_path
+
 def translate_in_place(gallery_dir: str, sku_dir: str, material: str = "Liquid Silicone", model_name: str = "Realme Neo8"):
     """
     Translates all images containing non-English text directly in-place,
     replacing the original file in \\gallery\\ and \\sku\\.
     """
     is_tpu = "tpu" in material.lower()
-    is_pc = "pc" in material.lower() or "hard" in material.lower() or "pet" in material.lower()
+    is_frosted_pc = ("neo8" in model_name.lower() or "neo7" in model_name.lower()) and ("pc" in material.lower() or "pet" in material.lower() or "hard" in material.lower())
+    is_pc = ("pc" in material.lower() or "hard" in material.lower() or "pet" in material.lower()) and not is_frosted_pc
     is_stand = is_tpu and ("x80" in model_name.lower() or "x70" in model_name.lower() or "x60" in model_name.lower() or "stand" in gallery_dir.lower())
     is_moire = ("silicone" in material.lower() and ("honor" in model_name.lower() or "600 lite" in model_name.lower())) or "moire" in material.lower() or "moire" in gallery_dir.lower()
 
@@ -529,7 +604,19 @@ def translate_in_place(gallery_dir: str, sku_dir: str, material: str = "Liquid S
             if not f.lower().endswith(('.jpg', '.jpeg', '.png', '.webp')):
                 continue
             path = os.path.join(gallery_dir, f)
-            if is_pc:
+            if is_frosted_pc:
+                if "01" in f:
+                    translate_frosted_pc_gallery_01(path, path)
+                    print(f"    [✓] In-place translated Frosted PC showcase: {f}")
+                elif "02" in f:
+                    translate_frosted_pc_sku(path, color_name="PEAK ROCK", model_name=model_name, out_path=path)
+                    print(f"    [✓] In-place translated Frosted PC gallery: {f}")
+                elif "03" in f:
+                    translate_frosted_pc_gallery_03(path, path)
+                    print(f"    [✓] In-place translated Frosted PC lens gallery: {f}")
+                else:
+                    print(f"    [i] Skipped clean 3D graphic image: {f}")
+            elif is_pc:
                 if "01" in f:
                     translate_magnetic_matte_sku(path, path, color_name="DESERT GOLD", model_name=model_name)
                     print(f"    [✓] In-place translated Hard PC showcase: {f}")
@@ -590,7 +677,27 @@ def translate_in_place(gallery_dir: str, sku_dir: str, material: str = "Liquid S
             if not f.lower().endswith(('.jpg', '.jpeg', '.png', '.webp')):
                 continue
             path = os.path.join(sku_dir, f)
-            if is_pc:
+            if is_frosted_pc:
+                col_name = "CLASSIC BLACK"
+                if "-RK-" in f:
+                    col_name = "PEAK ROCK"
+                elif "-GD-" in f:
+                    col_name = "DESERT GOLD"
+                elif "-BL-" in f:
+                    col_name = "WAVE BLUE"
+                elif "-PK-" in f:
+                    col_name = "SAKURA PINK"
+                elif "-CG-" in f:
+                    col_name = "CARBON GRAY"
+                elif "-PR-" in f:
+                    col_name = "SUNSET PURPLE"
+                elif "-TG-" in f:
+                    col_name = "TITANIUM GRAY"
+                elif "-BK-" in f:
+                    col_name = "CLASSIC BLACK"
+                translate_frosted_pc_sku(path, color_name=col_name, model_name=model_name, out_path=path)
+                print(f"    [✓] In-place translated Frosted PC SKU ({col_name}): {f}")
+            elif is_pc:
                 color_name = "TITANIUM GRAY"
                 if "-GY-" in f:
                     color_name = "TITANIUM GRAY"
@@ -623,7 +730,6 @@ def translate_in_place(gallery_dir: str, sku_dir: str, material: str = "Liquid S
                 translate_stand_tpu_sku(path, col_name, path)
                 print(f"    [✓] In-place translated Stand TPU SKU ({col_name}): {f}")
             elif is_moire:
-                # Determine color name from SKU filename
                 col_name = "MOIRÉ"
                 if "-BK-" in f:
                     col_name = "MOIRÉ BLACK"
