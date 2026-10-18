@@ -24,7 +24,7 @@ KNOWN_MATERIALS = [
     },
     {
         'canonical': 'Hard PC',
-        'patterns': [r'hard pc', r'polycarbonate', r'\bacrylic\b', r'hard plastic', r'hard case']
+        'patterns': [r'hard pc', r'polycarbonate', r'\bacrylic\b', r'hard plastic', r'hard case', r'\bpet\b', r'micro-matte', r'matte magnetic']
     },
     {
         'canonical': 'Metal',
@@ -56,6 +56,16 @@ def detect_material(product_info: Dict[str, Any], prompt_if_unknown: bool = True
     mat = detect_material_from_text(title)
     if mat:
         return mat
+
+    # Check specifications
+    raw_specs = product_info.get('raw_data', {}).get('specifications', {}).get('data', [])
+    for spec in raw_specs:
+        label = spec.get('label', '')
+        val = spec.get('value', '')
+        if any(k in label.lower() for k in ['material', 'texture', 'craft', 'style']):
+            mat = detect_material_from_text(val)
+            if mat:
+                return mat
 
     # Check properties
     for prop in product_info.get('properties', []):

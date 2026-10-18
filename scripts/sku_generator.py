@@ -42,6 +42,14 @@ MODEL_RULES = [
     (r'poco\s*x(\d+)\s*pro', r'PX\1P'),
     (r'poco\s*f(\d+)\s*pro', r'PF\1P'),
     # Huawei / Honor
+    (r'honor\s*x(\d+)\s*i', r'HX\1I'),
+    (r'honor\s*(\d+)\s*lite.*', r'H\1L'),
+    (r'honor\s*(\d+)\s*smart.*', r'H\1S'),
+    (r'honor\s*(\d+)\s*pro\s*\+', r'H\1PP'),
+    (r'honor\s*(\d+)\s*pro', r'H\1P'),
+    (r'honor\s*(\d+)', r'H\1'),
+    (r'honor\s*magic\s*(\d+)\s*pro', r'HM\1P'),
+    (r'honor\s*magic\s*(\d+)', r'HM\1'),
     (r'huawei\s*mate\s*(\d+)\s*pro\s*max', r'M\1PM'),
     (r'huawei\s*mate\s*(\d+)\s*pro', r'M\1P'),
     (r'huawei\s*mate\s*(\d+)\s*rs', r'M\1RS'),
@@ -76,6 +84,8 @@ MATERIAL_MAP: Dict[str, str] = {
     'hard pc': 'PC',
     'polycarbonate': 'PC',
     'acrylic': 'PC',
+    'pet': 'PC',
+    'micro-matte': 'PC',
     'metal': 'MET',
     'aluminum': 'MET',
     'carbon fiber': 'CF',
@@ -84,12 +94,12 @@ MATERIAL_MAP: Dict[str, str] = {
 
 # Color Abbreviations
 COLOR_MAP = [
-    (r'antique white|white|milky', 'WT'),
-    (r'classic black|black|matte black|midnight', 'BK'),
+    (r'antique white|white|milky|silver white', 'WT'),
+    (r'classic black|black|matte black|midnight|graphite', 'BK'),
     (r'grass purple|purple|lavender|violet|lilac', 'PR'),
-    (r'dark night green|green|emerald|pine|mint', 'GN'),
+    (r'dark night green|green|emerald|pine|mint|feitianqing|celadon', 'GN'),
     (r'royal blue|blue|navy|sierra blue|pacific', 'BL'),
-    (r'lavender gray|gray|grey|titanium gray|silver gray', 'GY'),
+    (r'lavender gray|gray|grey|titanium gray|silver gray|titanium', 'GY'),
     (r'camellia red|red|wine|burgundy|crimson', 'RD'),
     (r'light teal|teal|cyan|turquoise|aqua', 'TL'),
     (r'transparent|clear', 'CL'),
@@ -97,7 +107,7 @@ COLOR_MAP = [
     (r'pink|rose', 'PK'),
     (r'orange|coral', 'OR'),
     (r'brown|coffee', 'BR'),
-    (r'gold', 'GD'),
+    (r'gold|desert gold', 'GD'),
     (r'silver', 'SV'),
 ]
 

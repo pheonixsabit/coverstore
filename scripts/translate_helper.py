@@ -351,14 +351,177 @@ def translate_stand_tpu_sku(img_path: str, color_name: str, out_path: Optional[s
     im.convert("RGB").save(out_path, quality=95)
     return out_path
 
+def translate_magnetic_matte_sku(img_path: str, out_path: Optional[str] = None, color_name: str = "TITANIUM GRAY", model_name: str = "Honor x80i"):
+    """Translates 1600x1600 Magnetic Matte AF Lens SKU cover images in-place."""
+    if out_path is None:
+        out_path = img_path
+    im = Image.open(img_path).convert("RGB")
+    draw = ImageDraw.Draw(im)
+
+    # 1. Box side text (cover Chinese vertical text)
+    draw.rectangle([25, 300, 105, 1100], fill=(68, 72, 80))
+    font_box = get_font("C:/Windows/Fonts/arialbd.ttf", 32)
+    txt_img = Image.new("RGBA", (750, 60), (0, 0, 0, 0))
+    d_txt = ImageDraw.Draw(txt_img)
+    d_txt.text((0, 10), "MAGNETIC AF LENS PROTECTIVE CASE", fill=(200, 205, 215, 255), font=font_box)
+    rotated = txt_img.rotate(90, expand=True)
+    im.paste(rotated, (35, 320), rotated)
+
+    # 2. Right side text container
+    bg_color = (244, 244, 246)
+    draw.rectangle([880, 240, 1550, 1000], fill=bg_color)
+
+    # Top badge
+    draw.rounded_rectangle([890, 250, 1530, 380], radius=30, fill=(255, 228, 196), outline=(30, 30, 30), width=4)
+    draw.rounded_rectangle([900, 260, 1140, 370], radius=24, fill=(15, 15, 15))
+    font_badge_w = get_font("C:/Windows/Fonts/arialbd.ttf", 44)
+    draw.text((920, 290), "UPGRADE", fill=(255, 255, 255), font=font_badge_w)
+    font_badge_t = get_font("C:/Windows/Fonts/arialbd.ttf", 48)
+    draw.text((1170, 288), "AF LENS FILM", fill=(20, 20, 20), font=font_badge_t)
+
+    # Subtitle [1:1 PRECISION FIT]
+    font_sub = get_font("C:/Windows/Fonts/arialbd.ttf", 46)
+    draw.text((1000, 415), "[ 1:1 PRECISION FIT ]", fill=(40, 40, 40), font=font_sub)
+
+    # Big color title
+    font_color = get_font("C:/Windows/Fonts/arialbd.ttf", 74)
+    c_str = color_name.upper()
+    cbbox = draw.textbbox((0, 0), c_str, font=font_color)
+    cw = cbbox[2] - cbbox[0]
+    draw.text((880 + (670 - cw) / 2, 520), c_str, fill=(15, 15, 15), font=font_color)
+
+    # Craft description
+    font_craft = get_font("C:/Windows/Fonts/segoeuib.ttf", 36)
+    draw.text((890, 780), "FULL LENS COVER | 3D LASER CRAFT", fill=(60, 60, 60), font=font_craft)
+
+    # Model pill (exact replacement of original black pill)
+    draw.rounded_rectangle([900, 880, 1530, 970], radius=45, fill=(15, 15, 15))
+    font_model = get_font("C:/Windows/Fonts/arialbd.ttf", 42)
+    m_str = f"FOR: {model_name.upper()}"
+    mbbox = draw.textbbox((0, 0), m_str, font=font_model)
+    mw = mbbox[2] - mbbox[0]
+    draw.text((900 + (630 - mw) / 2, 905), m_str, fill=(255, 255, 255), font=font_model)
+
+    # 3. Bottom 3 badge pills
+    # Badge 1
+    draw.rounded_rectangle([1300, 1050, 1540, 1130], radius=40, fill=(255, 235, 215), outline=(30, 30, 30), width=3)
+    font_sm = get_font("C:/Windows/Fonts/arialbd.ttf", 20)
+    draw.text((1315, 1075), "BUILT-IN LENS FILM", fill=(30, 30, 30), font=font_sm)
+
+    # Badge 2
+    draw.rounded_rectangle([1350, 1240, 1590, 1320], radius=40, fill=(255, 235, 215), outline=(30, 30, 30), width=3)
+    draw.text((1365, 1265), "CLEAR PHOTOS", fill=(30, 30, 30), font=font_sm)
+
+    # Badge 3
+    draw.rounded_rectangle([1270, 1440, 1580, 1520], radius=40, fill=(255, 235, 215), outline=(30, 30, 30), width=3)
+    draw.text((1290, 1465), "ANTI-GLARE HD", fill=(30, 30, 30), font=font_sm)
+
+    im.save(out_path, quality=95)
+    return out_path
+
+def translate_magnetic_matte_gallery_02(img_path: str, out_path: Optional[str] = None):
+    """Translates gallery_02.jpg (scratch resistance)."""
+    if out_path is None:
+        out_path = img_path
+    im = Image.open(img_path).convert("RGB")
+    draw = ImageDraw.Draw(im)
+    draw.rectangle([30, 30, 1450, 270], fill=(7, 9, 14))
+    font_title = get_font("C:/Windows/Fonts/arialbd.ttf", 64)
+    font_sub = get_font("C:/Windows/Fonts/segoeuib.ttf", 36)
+    font_org = get_font("C:/Windows/Fonts/arialbd.ttf", 38)
+    draw.text((50, 45), "SCRATCH & ABRASION RESISTANT", fill=(255, 255, 255), font=font_title)
+    draw.text((50, 145), "Premium Micro-Matte Craftsmanship • Prevents Daily Scuffs", fill=(190, 195, 205), font=font_sub)
+    draw.text((50, 205), "DURABLE HARD PC MATERIAL", fill=(255, 120, 0), font=font_org)
+    im.save(out_path, quality=95)
+    return out_path
+
+def translate_magnetic_matte_gallery_03(img_path: str, out_path: Optional[str] = None):
+    """Translates gallery_03.jpg (matte texture)."""
+    if out_path is None:
+        out_path = img_path
+    im = Image.open(img_path).convert("RGB")
+    draw = ImageDraw.Draw(im)
+    draw.rectangle([40, 30, 1480, 250], fill=(30, 40, 52))
+    font_title = get_font("C:/Windows/Fonts/arialbd.ttf", 64)
+    font_pill = get_font("C:/Windows/Fonts/arialbd.ttf", 34)
+    draw.text((60, 45), "FLAGSHIP LUXURY MATTE", fill=(255, 255, 255), font=font_title)
+    draw.rounded_rectangle([60, 145, 660, 220], radius=35, fill=(200, 25, 25))
+    draw.text((90, 162), "SILKY TOUCH • ULTRA-PREMIUM", fill=(255, 255, 255), font=font_pill)
+
+    # Bottom badge
+    draw.rectangle([1080, 1290, 1560, 1550], fill=(20, 25, 35))
+    draw.rounded_rectangle([1080, 1300, 1550, 1400], radius=20, fill=(200, 25, 25))
+    draw.text((1110, 1325), "BUILT-IN LENS FILM", fill=(255, 255, 255), font=font_pill)
+    draw.text((1110, 1435), "SLIM STRAIGHT EDGE", fill=(255, 255, 255), font=font_pill)
+    im.save(out_path, quality=95)
+    return out_path
+
+def translate_magnetic_matte_gallery_04(img_path: str, out_path: Optional[str] = None):
+    """Translates gallery_04.jpg (dustproof mesh)."""
+    if out_path is None:
+        out_path = img_path
+    im = Image.open(img_path).convert("RGB")
+    draw = ImageDraw.Draw(im)
+    draw.rectangle([30, 30, 800, 380], fill=(15, 18, 26))
+    font_title = get_font("C:/Windows/Fonts/arialbd.ttf", 58)
+    font_sub = get_font("C:/Windows/Fonts/segoeuib.ttf", 32)
+    font_org = get_font("C:/Windows/Fonts/arialbd.ttf", 36)
+    draw.text((45, 45), "PRECISION DUST MESH", fill=(255, 255, 255), font=font_title)
+    draw.text((45, 135), "FEAR NO DUST OR SAND", fill=(255, 255, 255), font=font_title)
+    draw.text((45, 230), "ANTI-FINGERPRINT & ANTI-SWEAT", fill=(190, 195, 205), font=font_sub)
+    draw.text((45, 290), "1:1 PRECISION FIT", fill=(255, 120, 0), font=font_org)
+
+    # Bottom badge
+    draw.rounded_rectangle([1060, 1440, 1520, 1540], radius=40, fill=(255, 230, 205), outline=(30, 30, 30), width=4)
+    font_mesh = get_font("C:/Windows/Fonts/arialbd.ttf", 28)
+    draw.text((1085, 1470), "HONEYCOMB DUST MESH", fill=(30, 30, 30), font=font_mesh)
+    im.save(out_path, quality=95)
+    return out_path
+
+def translate_magnetic_matte_gallery_05(img_path: str, out_path: Optional[str] = None):
+    """Translates gallery_05.jpg (comparison)."""
+    if out_path is None:
+        out_path = img_path
+    im = Image.open(img_path).convert("RGB")
+    draw = ImageDraw.Draw(im)
+    draw.rectangle([40, 40, 1560, 300], fill=(12, 16, 22))
+    font_title = get_font("C:/Windows/Fonts/arialbd.ttf", 64)
+    font_sub = get_font("C:/Windows/Fonts/segoeuib.ttf", 36)
+    font_org = get_font("C:/Windows/Fonts/arialbd.ttf", 38)
+    draw.text((60, 50), "UPGRADED FRAME & BACKPLATE", fill=(255, 255, 255), font=font_title)
+    draw.text((60, 150), "Smooth Cool Matte Touch • Superior To Bare Phone Feel", fill=(190, 195, 205), font=font_sub)
+    draw.text((60, 220), "ANTI-FINGERPRINT • ANTI-OXIDATION", fill=(255, 120, 0), font=font_org)
+
+    # Badges
+    font_badge = get_font("C:/Windows/Fonts/arialbd.ttf", 32)
+    draw.rectangle([135, 880, 215, 1160], fill=(12, 16, 22))
+    draw.rounded_rectangle([135, 890, 215, 1150], radius=35, fill=(255, 120, 0))
+    t1 = Image.new("RGBA", (240, 60), (0, 0, 0, 0))
+    dt1 = ImageDraw.Draw(t1)
+    dt1.text((10, 10), "OUR CASE", fill=(255, 255, 255), font=font_badge)
+    rt1 = t1.rotate(90, expand=True)
+    im.paste(rt1, (145, 900), rt1)
+
+    draw.rectangle([815, 800, 895, 1100], fill=(12, 16, 22))
+    draw.rounded_rectangle([815, 810, 895, 1090], radius=35, fill=(120, 125, 135))
+    t2 = Image.new("RGBA", (260, 60), (0, 0, 0, 0))
+    dt2 = ImageDraw.Draw(t2)
+    dt2.text((10, 10), "STANDARD CASE", fill=(255, 255, 255), font=font_badge)
+    rt2 = t2.rotate(90, expand=True)
+    im.paste(rt2, (825, 820), rt2)
+
+    im.save(out_path, quality=95)
+    return out_path
+
 def translate_in_place(gallery_dir: str, sku_dir: str, material: str = "Liquid Silicone", model_name: str = "Realme Neo8"):
     """
     Translates all images containing non-English text directly in-place,
     replacing the original file in \\gallery\\ and \\sku\\.
     """
     is_tpu = "tpu" in material.lower()
-    is_moire = "moire" in material.lower() or "moire" in gallery_dir.lower() or "600 lite" in model_name.lower()
-    is_stand = "x80" in model_name.lower() or "x70" in model_name.lower() or "x60" in model_name.lower() or "stand" in gallery_dir.lower()
+    is_pc = "pc" in material.lower() or "hard" in material.lower() or "pet" in material.lower()
+    is_stand = is_tpu and ("x80" in model_name.lower() or "x70" in model_name.lower() or "x60" in model_name.lower() or "stand" in gallery_dir.lower())
+    is_moire = ("silicone" in material.lower() and ("honor" in model_name.lower() or "600 lite" in model_name.lower())) or "moire" in material.lower() or "moire" in gallery_dir.lower()
 
     # 1. Process gallery images
     if os.path.exists(gallery_dir):
@@ -366,7 +529,25 @@ def translate_in_place(gallery_dir: str, sku_dir: str, material: str = "Liquid S
             if not f.lower().endswith(('.jpg', '.jpeg', '.png', '.webp')):
                 continue
             path = os.path.join(gallery_dir, f)
-            if is_stand:
+            if is_pc:
+                if "01" in f:
+                    translate_magnetic_matte_sku(path, path, color_name="DESERT GOLD", model_name=model_name)
+                    print(f"    [✓] In-place translated Hard PC showcase: {f}")
+                elif "02" in f:
+                    translate_magnetic_matte_gallery_02(path, path)
+                    print(f"    [✓] In-place translated Hard PC gallery: {f}")
+                elif "03" in f:
+                    translate_magnetic_matte_gallery_03(path, path)
+                    print(f"    [✓] In-place translated Hard PC gallery: {f}")
+                elif "04" in f:
+                    translate_magnetic_matte_gallery_04(path, path)
+                    print(f"    [✓] In-place translated Hard PC gallery: {f}")
+                elif "05" in f:
+                    translate_magnetic_matte_gallery_05(path, path)
+                    print(f"    [✓] In-place translated Hard PC gallery: {f}")
+                else:
+                    print(f"    [i] Clean image verified: {f}")
+            elif is_stand:
                 if "01" in f:
                     translate_stand_tpu_gallery_01(path, path)
                     print(f"    [✓] In-place translated Stand TPU showcase: {f}")
@@ -409,7 +590,21 @@ def translate_in_place(gallery_dir: str, sku_dir: str, material: str = "Liquid S
             if not f.lower().endswith(('.jpg', '.jpeg', '.png', '.webp')):
                 continue
             path = os.path.join(sku_dir, f)
-            if is_stand:
+            if is_pc:
+                color_name = "TITANIUM GRAY"
+                if "-GY-" in f:
+                    color_name = "TITANIUM GRAY"
+                elif "-WT-" in f:
+                    color_name = "SILVER WHITE"
+                elif "-GN-" in f:
+                    color_name = "FEITIAN GREEN"
+                elif "-GD-" in f:
+                    color_name = "DESERT GOLD"
+                elif "-BK-" in f:
+                    color_name = "GRAPHITE BLACK"
+                translate_magnetic_matte_sku(path, path, color_name=color_name, model_name=model_name)
+                print(f"    [✓] In-place translated Hard PC SKU: {f} ({color_name})")
+            elif is_stand:
                 col_name = "CLEAR"
                 if "-SV-" in f or "silver" in f.lower():
                     col_name = "SILVER"
@@ -428,6 +623,7 @@ def translate_in_place(gallery_dir: str, sku_dir: str, material: str = "Liquid S
                 translate_stand_tpu_sku(path, col_name, path)
                 print(f"    [✓] In-place translated Stand TPU SKU ({col_name}): {f}")
             elif is_moire:
+                # Determine color name from SKU filename
                 col_name = "MOIRÉ"
                 if "-BK-" in f:
                     col_name = "MOIRÉ BLACK"
