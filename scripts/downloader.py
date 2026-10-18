@@ -135,6 +135,7 @@ def select_phone_model(models: List[Dict[str, str]]) -> List[Dict[str, str]]:
 def main():
     parser = argparse.ArgumentParser(description="Download phone cover images from MoveOn Global for specific phone model and material.")
     parser.add_argument("--url", "-u", type=str, help="MoveOn product URL")
+    parser.add_argument("--model", "-m", type=str, default=None, help="Phone model name to process (e.g. 'Honor X80i')")
     parser.add_argument("--china-delivery", "-c", type=float, default=None, help="China domestic delivery fee in BDT per unit")
     parser.add_argument("--no-push", action="store_true", help="Skip automatic git commit and push to remote repository")
     args = parser.parse_args()
@@ -174,7 +175,15 @@ def main():
     print(f"[+] Material Identified: {material_clean}")
 
     # 2. Select Phone Model
-    selected_models = select_phone_model(models)
+    if args.model:
+        m_query = args.model.strip().lower()
+        selected_models = [m for m in models if m_query == m['clean_name'].lower() or m_query in m['clean_name'].lower()]
+        if not selected_models:
+            print(f"[!] No models matched '{args.model}'. Prompting selection:")
+            selected_models = select_phone_model(models)
+    else:
+        selected_models = select_phone_model(models)
+
     print(f"\n[+] Selected {len(selected_models)} model(s) to process:")
     for m in selected_models:
         print(f"   - {m['clean_name']}")

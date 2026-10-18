@@ -266,13 +266,99 @@ def translate_moire_sku(img_path: str, color_name: str, out_path: Optional[str] 
     im.convert("RGB").save(out_path, quality=95)
     return out_path
 
+def translate_stand_tpu_gallery_01(img_path: str, out_path: Optional[str] = None):
+    """Translates Honor X series Stand TPU showcase gallery_01.jpg in-place."""
+    if out_path is None:
+        out_path = img_path
+    im = Image.open(img_path).convert("RGBA")
+    draw = ImageDraw.Draw(im)
+
+    # Top banner: cover orange/white [0, 0, 800, 120]
+    draw.rectangle([0, 0, 800, 120], fill=(235, 80, 20, 255))
+    font_top = get_font("C:/Windows/Fonts/arialbd.ttf", 36)
+    draw.text((120, 40), "PREMIUM MAGNETIC STAND CASE", fill=(255, 255, 255, 255), font=font_top)
+
+    # Top right title: 磁吸支点壳 -> MAGNETIC STAND
+    draw.rectangle([350, 130, 800, 240], fill=(235, 235, 238, 255))
+    font_h1 = get_font("C:/Windows/Fonts/arialbd.ttf", 40)
+    draw.text((370, 150), "MAGNETIC STAND", fill=(25, 25, 25, 255), font=font_h1)
+
+    # Pill badges: 四角气囊防摔, 可横竖支撑
+    draw.rounded_rectangle([610, 250, 785, 305], radius=15, fill=(100, 105, 115, 255))
+    font_badge = get_font("C:/Windows/Fonts/segoeuib.ttf", 18)
+    draw.text((625, 265), "4-CORNER AIRBAG", fill=(255, 255, 255, 255), font=font_badge)
+
+    draw.rounded_rectangle([660, 325, 785, 380], radius=15, fill=(25, 25, 28, 255))
+    draw.text((675, 342), "DUAL STAND", fill=(255, 255, 255, 255), font=font_badge)
+
+    # Bottom left model tag: 适用荣耀X系列 -> FOR HONOR X SERIES
+    draw.rectangle([20, 820, 360, 885], fill=(244, 244, 245, 255))
+    font_model = get_font("C:/Windows/Fonts/arialbd.ttf", 26)
+    draw.text((35, 835), "HONOR X SERIES", fill=(30, 30, 30, 255), font=font_model)
+
+    # Bottom orange banner: cover [0, 890, 800, 1000]
+    draw.rectangle([0, 890, 800, 1000], fill=(235, 80, 20, 255))
+    font_btm = get_font("C:/Windows/Fonts/arialbd.ttf", 34)
+    draw.text((70, 925), "OFFICIAL FACTORY DIRECT | FAST DISPATCH", fill=(255, 255, 255, 255), font=font_btm)
+
+    im.convert("RGB").save(out_path, quality=95)
+    return out_path
+
+def translate_stand_tpu_sku(img_path: str, color_name: str, out_path: Optional[str] = None):
+    """Translates Honor X series Stand TPU SKU images in-place."""
+    if out_path is None:
+        out_path = img_path
+    im = Image.open(img_path).convert("RGBA")
+    draw = ImageDraw.Draw(im)
+
+    # Top title: cover [20, 20, 580, 125] with off-white
+    draw.rectangle([20, 20, 580, 125], fill=(244, 244, 244, 255))
+    font_title = get_font("C:/Windows/Fonts/arialbd.ttf", 36)
+    draw.text((30, 45), "MAGNETIC STAND CASE", fill=(25, 25, 25, 255), font=font_title)
+
+    # Color pill: cover [25, 135, 250, 200]
+    draw.rectangle([25, 135, 250, 200], fill=(244, 244, 244, 255))
+    font_pill = get_font("C:/Windows/Fonts/arialbd.ttf", 20)
+
+    clean_color = color_name.upper().strip()
+    bbox = draw.textbbox((0, 0), clean_color, font=font_pill)
+    tw = bbox[2] - bbox[0]
+    pw = max(tw + 40, 130)
+
+    draw.rounded_rectangle([30, 142, 30 + pw, 192], radius=12, fill=(60, 60, 65, 255))
+    draw.text((30 + (pw - tw) / 2, 154), clean_color, fill=(255, 255, 255, 255), font=font_pill)
+
+    # Bullet points: cover [25, 265, 280, 450]
+    draw.rectangle([25, 265, 280, 450], fill=(244, 244, 244, 255))
+    font_bullet = get_font("C:/Windows/Fonts/segoeuib.ttf", 17)
+    bullets = [
+        "• Multi-Angle Stand",
+        "• Integrated Lens Film",
+        "• Airbag Shockproof",
+        "• Ultra-Clear Anti-Yellow"
+    ]
+    y_start = 280
+    for b in bullets:
+        draw.text((30, y_start), b, fill=(40, 40, 45, 255), font=font_bullet)
+        y_start += 38
+
+    # Bottom disclaimer: cover [15, 725, 280, 785]
+    draw.rectangle([15, 725, 280, 785], fill=(235, 235, 236, 255))
+    font_disc = get_font("C:/Windows/Fonts/segoeui.ttf", 12)
+    draw.text((25, 735), "Tailored precision cutouts", fill=(110, 110, 115, 255), font=font_disc)
+    draw.text((25, 755), "for your selected phone model", fill=(110, 110, 115, 255), font=font_disc)
+
+    im.convert("RGB").save(out_path, quality=95)
+    return out_path
+
 def translate_in_place(gallery_dir: str, sku_dir: str, material: str = "Liquid Silicone", model_name: str = "Realme Neo8"):
     """
     Translates all images containing non-English text directly in-place,
     replacing the original file in \\gallery\\ and \\sku\\.
     """
     is_tpu = "tpu" in material.lower()
-    is_moire = "honor" in model_name.lower() or "moire" in material.lower() or "moire" in gallery_dir.lower()
+    is_moire = "moire" in material.lower() or "moire" in gallery_dir.lower() or "600 lite" in model_name.lower()
+    is_stand = "x80" in model_name.lower() or "x70" in model_name.lower() or "x60" in model_name.lower() or "stand" in gallery_dir.lower()
 
     # 1. Process gallery images
     if os.path.exists(gallery_dir):
@@ -280,7 +366,13 @@ def translate_in_place(gallery_dir: str, sku_dir: str, material: str = "Liquid S
             if not f.lower().endswith(('.jpg', '.jpeg', '.png', '.webp')):
                 continue
             path = os.path.join(gallery_dir, f)
-            if is_moire:
+            if is_stand:
+                if "01" in f:
+                    translate_stand_tpu_gallery_01(path, path)
+                    print(f"    [✓] In-place translated Stand TPU showcase: {f}")
+                else:
+                    print(f"    [i] Skipped clean studio/lifestyle image: {f}")
+            elif is_moire:
                 if "01" in f:
                     translate_moire_gallery_01(path, path)
                     print(f"    [✓] In-place translated Moiré showcase: {f}")
@@ -317,8 +409,25 @@ def translate_in_place(gallery_dir: str, sku_dir: str, material: str = "Liquid S
             if not f.lower().endswith(('.jpg', '.jpeg', '.png', '.webp')):
                 continue
             path = os.path.join(sku_dir, f)
-            if is_moire:
-                # Determine color name from SKU filename
+            if is_stand:
+                col_name = "CLEAR"
+                if "-SV-" in f or "silver" in f.lower():
+                    col_name = "SILVER"
+                elif "-BK-" in f or "black" in f.lower():
+                    col_name = "CLASSIC BLACK"
+                elif "-PR-" in f or "purple" in f.lower():
+                    col_name = "DEEP PURPLE"
+                elif "-BL-" in f or "blue" in f.lower():
+                    col_name = "PACIFIC BLUE"
+                elif "-PK-" in f or "pink" in f.lower():
+                    col_name = "ROSE PINK"
+                elif "-GN-" in f or "green" in f.lower():
+                    col_name = "PINE GREEN"
+                elif "-CL-" in f or "transparent" in f.lower():
+                    col_name = "CRYSTAL CLEAR"
+                translate_stand_tpu_sku(path, col_name, path)
+                print(f"    [✓] In-place translated Stand TPU SKU ({col_name}): {f}")
+            elif is_moire:
                 col_name = "MOIRÉ"
                 if "-BK-" in f:
                     col_name = "MOIRÉ BLACK"
