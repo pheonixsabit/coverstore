@@ -156,3 +156,19 @@ Upgraded your phone? Don’t let one accidental drop break your screen! 🛡️�
    Use standardized color names (Classic Black, Antique White, Lavender Gray, Royal Blue, etc.) matching the custom SKU tags to prevent buyer confusion.
 4. **Transparent Risk-Reversal:**  
    Clearly mention: *"You can inspect the product in front of the delivery agent before paying!"* This single line boosts conversion rates by over 40% in Bangladesh e-commerce.
+
+---
+
+## ⚡ Pre-Order Notice Standard (প্রি-অর্ডার নোটিশ)
+
+For products imported on-demand from overseas manufacturers, prepend this standardized Pre-Order header block to the description:
+
+```markdown
+⚡ PRE-ORDER ITEM (প্রি-অর্ডার পণ্য):
+• Import Notice: Sourced directly from authentic overseas manufacturer upon order confirmation.
+• Estimated Delivery Timeline: 7 to 12 working days across Bangladesh.
+• Payment: Nationwide Cash on Delivery (COD) supported.
+• Inspection: 100% Parcel Inspection Enabled — verify your cover before paying!
+─────────────────────────────────────────────
+```
+
