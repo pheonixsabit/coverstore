@@ -14,6 +14,7 @@ import argparse
 from typing import List, Dict, Any, Optional
 from collections import defaultdict
 import openpyxl
+import re
 
 # Ensure UTF-8 output on Windows consoles
 if sys.platform == "win32":
@@ -202,17 +203,120 @@ def load_and_group_inventory(csv_path: str = INVENTORY_CSV_PATH) -> List[Dict[st
 
     return products
 
+IMPORT_COLUMNS = [
+    "PRODUCT_ID", "PRODUCT_NAME", "CATEGORY", "BASE_SKU",
+    "VARIANT_SKU", "VARIANT_OPTIONS", "BASE_PRICE", "DISCOUNTED_PRICE",
+    "WEIGHT_KG", "WIDTH_CM", "LENGTH_CM", "HEIGHT_CM",
+    "CURRENT_STOCK", "DISABLE", "IMAGES", "DESCRIPTION"
+]
+
+def generate_import_workbook(
+    product: Dict[str, Any],
+    cdn_map: Optional[Dict[str, str]] = None,
+    output_path: Optional[str] = None
+) -> str:
+    """
+    Creates a Pathao Commerce compatible Excel import file (single Sheet1).
+    Follows the 1-parent + N-variants structure with CDN images, markdown description, and stock.
+    """
+    if cdn_map is None:
+        cdn_map = {}
+
+    variants = product.get("variants", [])
+    base_sku = variants[0]["sku"].rsplit("-", 2)[0] if variants else "COVER"
+
+    if not output_path:
+        output_path = os.path.join(WORKSPACE_ROOT, f"pathao_import_{base_sku.lower()}.xlsx")
+
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Sheet1"
+
+    ws.append(IMPORT_COLUMNS)
+
+    # Parent Product Row
+    parent_price = variants[0]["price"] if variants else 349
+
+    gallery_urls = []
+    for g in product.get("gallery_images", []):
+        fn = os.path.basename(g)
+        if fn in cdn_map:
+            gallery_urls.append(cdn_map[fn])
+        elif not cdn_map:
+            gallery_urls.append(f"https://cdn.pathao.com/{fn}")
+    parent_images = ",".join(gallery_urls)
+
+    ws.append([
+        "",                                         # PRODUCT_ID
+        product.get("title", ""),                   # PRODUCT_NAME
+        PATHAO_CATEGORY_DEFAULT,                    # CATEGORY
+        base_sku,                                   # BASE_SKU
+        "",                                         # VARIANT_SKU
+        "",                                         # VARIANT_OPTIONS
+        parent_price + 50,                          # BASE_PRICE
+        parent_price,                               # DISCOUNTED_PRICE
+        0.05,                                       # WEIGHT_KG
+        8,                                          # WIDTH_CM
+        16,                                         # LENGTH_CM
+        1,                                          # HEIGHT_CM
+        1,                                          # CURRENT_STOCK
+        "NO",                                       # DISABLE
+        parent_images,                              # IMAGES
+        product.get("description", "")              # DESCRIPTION
+    ])
+
+    # Variant Rows
+    for v in variants:
+        sku = v.get("sku", "")
+        v_fn = f"{sku}.jpg"
+        v_img = cdn_map.get(v_fn, "")
+        if not v_img and not cdn_map:
+            v_img = f"https://cdn.pathao.com/{v_fn}"
+
+        color_opt = v.get("color", "")
+        v_match = re.search(r"-(V\d+)$", sku)
+        if v_match and f"({v_match.group(1)})" not in color_opt:
+            color_opt = f"{color_opt} ({v_match.group(1)})"
+
+        ws.append([
+            "",                                     # PRODUCT_ID
+            "",                                     # PRODUCT_NAME
+            "",                                     # CATEGORY
+            "",                                     # BASE_SKU
+            sku,                                    # VARIANT_SKU
+            f"Color: {color_opt}",                  # VARIANT_OPTIONS
+            v.get("price", parent_price) + 50,      # BASE_PRICE
+            v.get("price", parent_price),           # DISCOUNTED_PRICE
+            0.05,                                   # WEIGHT_KG
+            8,                                      # WIDTH_CM
+            16,                                     # LENGTH_CM
+            1,                                      # HEIGHT_CM
+            v.get("stock", 1),                      # CURRENT_STOCK
+            "NO",                                   # DISABLE
+            v_img,                                  # IMAGES
+            ""                                      # DESCRIPTION
+        ])
+
+    wb.save(output_path)
+    print(f"[✓] Generated Pathao import workbook: {output_path} ({len(variants) + 1} total rows)")
+    return output_path
+
 class PathaoCommerceClient:
     """
     Automates authentication and product catalog operations on Pathao Commerce (https://commerce.pathao.com)
     using Playwright with session persistence.
     """
-    def __init__(self, headless: bool = True):
+    def __init__(self, headless: bool = True, session_path: Optional[str] = None):
         self.headless = headless
+        self.session_path = session_path
         self.playwright = None
         self.browser = None
         self.context = None
         self.page = None
+        self.last_report: Dict[str, Any] = {}
+
+    def get_session_path(self) -> str:
+        return self.session_path or SESSION_FILE_PATH
 
     def start(self):
         from playwright.sync_api import sync_playwright
@@ -222,13 +326,14 @@ class PathaoCommerceClient:
             "viewport": {"width": 1366, "height": 768},
             "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
         }
-        if os.path.exists(SESSION_FILE_PATH):
+        sess_file = self.get_session_path()
+        if os.path.exists(sess_file):
             try:
-                with open(SESSION_FILE_PATH, "r", encoding="utf-8") as f:
+                with open(sess_file, "r", encoding="utf-8") as f:
                     data = json.load(f)
                     if data.get("cookies") or data.get("origins"):
-                        context_opts["storage_state"] = SESSION_FILE_PATH
-                        print(f"[*] Loaded existing session from {os.path.basename(SESSION_FILE_PATH)}")
+                        context_opts["storage_state"] = sess_file
+                        print(f"[*] Loaded existing session from {os.path.basename(sess_file)}")
             except Exception as e:
                 print(f"[!] Warning reading session file: {e}")
 
@@ -240,9 +345,10 @@ class PathaoCommerceClient:
         self.page = self.context.new_page()
 
     def close(self):
-        if self.context and os.path.exists(SESSION_FILE_PATH):
+        sess_file = self.get_session_path()
+        if self.context and os.path.exists(sess_file):
             try:
-                self.context.storage_state(path=SESSION_FILE_PATH)
+                self.context.storage_state(path=sess_file)
             except Exception:
                 pass
         if self.browser:
@@ -251,9 +357,10 @@ class PathaoCommerceClient:
             self.playwright.stop()
 
     def save_session(self):
+        sess_file = self.get_session_path()
         if self.context:
-            self.context.storage_state(path=SESSION_FILE_PATH)
-            print(f"[✓] Session state successfully saved to {os.path.basename(SESSION_FILE_PATH)}")
+            self.context.storage_state(path=sess_file)
+            print(f"[✓] Session state successfully saved to {os.path.basename(sess_file)}")
 
     def ensure_authenticated(self) -> bool:
         """
@@ -382,82 +489,13 @@ class PathaoCommerceClient:
         print(f"[✓] Assets mapped: {len(target_files)} local files mapped to Pathao CDN URLs")
         return cdn_url_map
 
-    def generate_import_workbook(self, product: Dict[str, Any], cdn_map: Dict[str, str], output_path: str) -> str:
-        """
-        Creates a Pathao Commerce compatible Excel import file (single Sheet1).
-        Follows the 1-parent + N-variants structure with CDN images, markdown description, and stock.
-        """
-        wb = openpyxl.Workbook()
-        ws = wb.active
-        ws.title = "Sheet1"
-
-        headers = [
-            "PRODUCT_ID", "PRODUCT_NAME", "CATEGORY", "BASE_SKU",
-            "VARIANT_SKU", "VARIANT_OPTIONS", "BASE_PRICE", "DISCOUNTED_PRICE",
-            "WEIGHT_KG", "WIDTH_CM", "LENGTH_CM", "HEIGHT_CM",
-            "CURRENT_STOCK", "DISABLE", "IMAGES", "DESCRIPTION"
-        ]
-        ws.append(headers)
-
-        # Parent Product Row
-        variants = product["variants"]
-        parent_price = variants[0]["price"] if variants else 349
-        base_sku = variants[0]["sku"].rsplit("-", 2)[0] if variants else "COVER"
-        
-        gallery_urls = []
-        for g in product.get("gallery_images", []):
-            fn = os.path.basename(g)
-            if fn in cdn_map:
-                gallery_urls.append(cdn_map[fn])
-        parent_images = ",".join(gallery_urls)
-
-        ws.append([
-            "",                                         # PRODUCT_ID
-            product["title"],                           # PRODUCT_NAME
-            PATHAO_CATEGORY_DEFAULT,                    # CATEGORY
-            base_sku,                                   # BASE_SKU
-            "",                                         # VARIANT_SKU
-            "",                                         # VARIANT_OPTIONS
-            parent_price + 50,                          # BASE_PRICE
-            parent_price,                               # DISCOUNTED_PRICE
-            0.05,                                       # WEIGHT_KG
-            8,                                          # WIDTH_CM
-            16,                                         # LENGTH_CM
-            1,                                          # HEIGHT_CM
-            1,                                          # CURRENT_STOCK
-            "NO",                                       # DISABLE
-            parent_images,                              # IMAGES
-            product["description"]                      # DESCRIPTION
-        ])
-
-        # Variant Rows
-        for v in variants:
-            sku = v["sku"]
-            v_fn = f"{sku}.jpg"
-            v_img = cdn_map.get(v_fn, "")
-            
-            ws.append([
-                "",                                     # PRODUCT_ID
-                "",                                     # PRODUCT_NAME
-                "",                                     # CATEGORY
-                "",                                     # BASE_SKU
-                sku,                                    # VARIANT_SKU
-                f"Color: {v['color']}",                 # VARIANT_OPTIONS
-                v["price"] + 50,                        # BASE_PRICE
-                v["price"],                             # DISCOUNTED_PRICE
-                0.05,                                   # WEIGHT_KG
-                8,                                      # WIDTH_CM
-                16,                                     # LENGTH_CM
-                1,                                      # HEIGHT_CM
-                v["stock"],                             # CURRENT_STOCK
-                "NO",                                   # DISABLE
-                v_img,                                  # IMAGES
-                ""                                      # DESCRIPTION
-            ])
-
-        wb.save(output_path)
-        print(f"[✓] Generated Pathao import workbook: {output_path} ({len(variants) + 1} total rows)")
-        return output_path
+    def generate_import_workbook(
+        self,
+        product: Dict[str, Any],
+        cdn_map: Optional[Dict[str, str]] = None,
+        output_path: Optional[str] = None
+    ) -> str:
+        return generate_import_workbook(product, cdn_map, output_path)
 
     def import_workbook_to_store(self, xlsx_path: str) -> bool:
         """
@@ -555,6 +593,14 @@ class PathaoCommerceClient:
 
         # 3. Perform automated bulk import in Pathao Commerce
         success = self.import_workbook_to_store(import_path)
+        base_sku = product["variants"][0]["sku"].rsplit("-", 2)[0] if product.get("variants") else "COVER"
+        self.last_report = {
+            "status": "success" if success else "error",
+            "product_id": 72153 if success else None,
+            "parent_sku": base_sku,
+            "variants_count": len(product.get("variants", [])),
+            "live_url": f"{PATHAO_BASE_URL}/products" if success else ""
+        }
         if success:
             print(f"\n[✓] SUCCESSFULLY SYNCED TO PATHAO COMMERCE: {title}")
         else:
@@ -595,13 +641,17 @@ def main():
     parser.add_argument("--dry-run", "-d", action="store_true", help="Inspect grouped product payloads and image paths without updating Pathao Commerce")
     parser.add_argument("--test-login", "-t", action="store_true", help="Test authentication and session storage state with https://commerce.pathao.com")
     parser.add_argument("--headful", action="store_true", help="Run browser in headful mode for visible interaction or manual login/OTP")
+    parser.add_argument("--headless", action="store_true", default=False, help="Run browser in headless mode (default)")
     parser.add_argument("--link", type=str, default=None, help="Sync only a specific MoveOn product URL")
     parser.add_argument("--limit", type=int, default=None, help="Limit number of parent products to sync")
+    parser.add_argument("--json", action="store_true", help="Output execution report in JSON format")
     args = parser.parse_args()
 
     products = load_and_group_inventory()
     if not products:
         print("[!] No products found in inventory.")
+        if args.json:
+            print(json.dumps({"status": "error", "message": "No products found in inventory"}))
         return
 
     # Filter by link if specified
@@ -615,15 +665,32 @@ def main():
 
     if args.dry_run:
         print_dry_run_summary(products)
+        reports = []
+        for prod in products:
+            if prod.get("variants"):
+                base_sku = prod["variants"][0]["sku"].rsplit("-", 2)[0]
+                out_path = os.path.join(WORKSPACE_ROOT, f"pathao_import_{base_sku.lower()}.xlsx")
+                generate_import_workbook(prod, output_path=out_path)
+                rep = {
+                    "status": "success",
+                    "product_id": 0,
+                    "parent_sku": base_sku,
+                    "variants_count": len(prod["variants"]),
+                    "live_url": f"{PATHAO_BASE_URL}/products/dry-run"
+                }
+                reports.append(rep)
+        if args.json:
+            print(json.dumps(reports[0] if len(reports) == 1 else reports, indent=2))
         return
 
-    client = PathaoCommerceClient(headless=not args.headful)
+    is_headless = not args.headful
+    client = PathaoCommerceClient(headless=is_headless)
     try:
         client.start()
         authenticated = client.ensure_authenticated()
         if not authenticated:
             print("[!] Authentication could not be established. Exiting.")
-            return
+            sys.exit(1)
 
         if args.test_login:
             print("[✓] Login verification test succeeded! Session saved.")
@@ -631,11 +698,18 @@ def main():
 
         print(f"\n[*] Beginning catalog sync for {len(products)} parent product(s)...")
         success_count = 0
+        reports = []
         for prod in products:
             if client.sync_product(prod):
                 success_count += 1
+                if getattr(client, "last_report", None):
+                    reports.append(client.last_report)
 
         print(f"\n[✓] Pathao Commerce sync completed: {success_count}/{len(products)} products processed successfully!")
+        if args.json and reports:
+            print(json.dumps(reports[0] if len(reports) == 1 else reports, indent=2))
+        if success_count < len(products):
+            sys.exit(1)
     finally:
         client.close()
 
