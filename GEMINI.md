@@ -80,7 +80,9 @@
 
 ## 8. MoveOn Business Account Crawling Standard
 - **Scope**: All MoveOn product downloads and pricing synchronization.
-- **Authentication**: Supports authenticated MoveOn Business Account requests using a Bearer token stored in `.env` as `MOVEON_AUTH_TOKEN` (or via `--token`).
+- **Authentication**: Supports authenticated MoveOn Business Account requests using:
+  1. Automated Email & Password login (MOVEON_EMAIL and MOVEON_PASSWORD in .env) with Playwright browser session caching (.moveon_session.json).
+  2. Direct Bearer token stored in .env as MOVEON_AUTH_TOKEN (or via --token).
 - **Wholesale Tier Pricing**:
   - Automatically queries MoveOn's wholesale endpoints with `business_type=wholesale`.
   - Attaches `Authorization: Bearer <token>` when available.
