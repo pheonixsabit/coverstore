@@ -413,10 +413,10 @@ class ImageTranslator:
         if x2 <= x1 or y2 <= y1:
             return im
 
-        # Auto-sample border colors if missing
+        # Auto-sample border colors if missing (with strict pixel boundary clamping)
         if c_top is None:
-            sample_y = max(0, y1 - 2) if y1 >= 2 else min(h - 1, y1)
-            xs = [int(x1 + (x2 - x1) * i / 4) for i in range(5)]
+            sample_y = max(0, min(h - 1, y1 - 2 if y1 >= 2 else y1))
+            xs = [max(0, min(w - 1, int(x1 + (x2 - x1) * i / 4))) for i in range(5)]
             samples = [im.getpixel((x, sample_y))[:3] for x in xs]
             c_top = (
                 int(sum(s[0] for s in samples) / len(samples)),
@@ -425,8 +425,8 @@ class ImageTranslator:
             )
 
         if c_bottom is None:
-            sample_y = min(h - 1, y2 + 2) if y2 + 2 < h else max(0, y2 - 1)
-            xs = [int(x1 + (x2 - x1) * i / 4) for i in range(5)]
+            sample_y = max(0, min(h - 1, y2 + 2 if y2 + 2 < h else y2 - 1))
+            xs = [max(0, min(w - 1, int(x1 + (x2 - x1) * i / 4))) for i in range(5)]
             samples = [im.getpixel((x, sample_y))[:3] for x in xs]
             c_bottom = (
                 int(sum(s[0] for s in samples) / len(samples)),

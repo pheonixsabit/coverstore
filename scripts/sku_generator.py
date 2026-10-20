@@ -184,14 +184,25 @@ def disambiguate_sku(base_sku: str, existing_skus: set) -> str:
     """
     Appends a unique disambiguation suffix (-V2, -V3, ...)
     when base_sku already exists in the provided existing_skus set.
+    Prevents suffix stacking (-V2-V2) when base_sku already has a -V<N> suffix.
     """
     if not existing_skus or base_sku not in existing_skus:
         return base_sku
-    version = 2
-    candidate = f"{base_sku}-V{version}"
+
+    # Strip existing -V<N> suffix and resume versioning from next integer
+    m = re.search(r"^(.*?)-V(\d+)$", base_sku)
+    if m:
+        root_sku = m.group(1)
+        start_version = int(m.group(2)) + 1
+    else:
+        root_sku = base_sku
+        start_version = 2
+
+    version = start_version
+    candidate = f"{root_sku}-V{version}"
     while candidate in existing_skus:
         version += 1
-        candidate = f"{base_sku}-V{version}"
+        candidate = f"{root_sku}-V{version}"
     return candidate
 
 def resolve_sku_collision(

@@ -60,12 +60,22 @@ def perform_sync(branch: str = "main", remote: str = "origin") -> bool:
     print(f"[*] Fetching & pulling remote changes ({remote}/{branch}) with --rebase --autostash...")
     pull_res = run_git(["pull", "--rebase", "--autostash", remote, branch])
     if pull_res.returncode != 0:
-        print(f"[!] Warning: Git pull failed:\n{pull_res.stderr.strip() or pull_res.stdout.strip()}")
-        # Check if rebase needs aborting
-        if "rebase in progress" in pull_res.stderr.lower() or "conflict" in pull_res.stderr.lower():
+        err_msg = pull_res.stderr.strip() or pull_res.stdout.strip()
+        print(f"[!] Warning: Git pull failed:\n{err_msg}")
+
+        # Check if rebase needs aborting by inspecting stdout, stderr, and .git state
+        combined_output = f"{pull_res.stdout}\n{pull_res.stderr}".lower()
+        git_dir = os.path.join(WORKSPACE_ROOT, ".git")
+        rebase_dir_exists = (
+            os.path.exists(os.path.join(git_dir, "rebase-merge")) or
+            os.path.exists(os.path.join(git_dir, "rebase-apply"))
+        )
+        if rebase_dir_exists or "conflict" in combined_output or "rebase in progress" in combined_output:
             print("[!] Merge conflict detected. Aborting rebase to keep working tree safe.")
             run_git(["rebase", "--abort"])
-            return False
+
+        # Never proceed to stage/commit when git pull fails
+        return False
     else:
         pull_output = pull_res.stdout.strip()
         if "Already up to date" in pull_output:
