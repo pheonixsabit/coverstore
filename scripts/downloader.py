@@ -138,6 +138,7 @@ def main():
     parser.add_argument("--china-delivery", "-c", type=float, default=None, help="China domestic delivery fee in BDT per unit")
     parser.add_argument("--model", "-m", type=str, default=None, help="Phone model name(s), comma-separated, or 'all'")
     parser.add_argument("--material", type=str, default=None, help="Material override name")
+    parser.add_argument("--token", "-t", type=str, default=None, help="MoveOn business account auth token")
     parser.add_argument("--no-push", action="store_true", help="Skip automatic git commit and push to remote repository")
     args = parser.parse_args()
 
@@ -154,7 +155,7 @@ def main():
         sys.exit(1)
 
     print(f"\n[*] Fetching product data from MoveOn for: {url}")
-    client = MoveOnClient()
+    client = MoveOnClient(auth_token=args.token)
     try:
         product_info = client.fetch_product(url)
     except Exception as e:

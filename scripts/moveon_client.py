@@ -1,3 +1,4 @@
+import os
 import re
 import urllib.request
 import urllib.error
@@ -55,13 +56,38 @@ def sanitize_filename(name: str) -> str:
     name = re.sub(r'\s+', ' ', name)
     return name.strip()
 
+
+def load_env(env_path: Optional[str] = None) -> Dict[str, str]:
+    """Lightweight .env reader without external dependencies."""
+    if env_path is None:
+        env_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".env"))
+    env_vars = {}
+    if os.path.exists(env_path):
+        try:
+            with open(env_path, "r", encoding="utf-8") as f:
+                for line in f:
+                    line = line.strip()
+                    if not line or line.startswith("#") or "=" not in line:
+                        continue
+                    k, v = line.split("=", 1)
+                    k = k.strip()
+                    v = v.strip().strip("'\"")
+                    env_vars[k] = v
+                    if k not in os.environ:
+                        os.environ[k] = v
+        except Exception:
+            pass
+    return env_vars
+
 class MoveOnClient:
     BASE_API = "https://product-api.proxy.service.moveon.global/api/product/customer/v1/products/find"
 
-    def __init__(self, region: str = "BD", locale: str = "en", business_type: str = "wholesale"):
+    def __init__(self, region: str = "BD", locale: str = "en", business_type: str = "wholesale", auth_token: Optional[str] = None):
+        load_env()
         self.region = region
         self.locale = locale
         self.business_type = business_type
+        self.auth_token = (auth_token or os.environ.get("MOVEON_AUTH_TOKEN") or "").strip()
         self.guest_id = str(uuid.uuid4())
 
     def fetch_product(self, url_or_id: str) -> Dict[str, Any]:
@@ -83,6 +109,11 @@ class MoveOnClient:
             'X-GUEST-ID': self.guest_id,
             'X-GUEST-SESSION': self.guest_id
         }
+        if self.auth_token:
+            headers['Authorization'] = f"Bearer {self.auth_token}"
+            print("    [✓] Crawling as MoveOn Business Account (auth token applied).")
+        else:
+            print("    [i] Crawling in Guest Wholesale mode (no MOVEON_AUTH_TOKEN detected in .env).")
 
         req = urllib.request.Request(api_url, headers=headers)
         try:
