@@ -664,9 +664,9 @@ class ImageTranslator:
         """Translates Hard PC / Magnetic Matte gallery images across 800x800 and 1600x1600."""
         # gallery_01: Magnetic Frosted showcase + packaging box spine
         if "01" in fname:
-            # 1. Left Spine Box (if packaging spine exists on left border)
-            spine_sample = im.getpixel((int(0.04 * w), int(0.50 * h)))[:3]
-            if sum(spine_sample) < 250:
+            if w >= 1200:
+                # 1600x1600 Magnetic Matte AF Lens Showcase (Honor X80i style)
+                # 1. Left Spine Box (covers vertical Chinese on box spine completely)
                 spine_box = self.scale_box((0.015, 0.10, 0.08, 0.90), w, h)
                 self.inpaint_gradient(im, spine_box, c_top=(55, 60, 70), c_bottom=(55, 60, 70))
                 f_spine, sw, sh, _ = self.fit_text(draw, "MAGNETIC AF LENS PROTECTIVE CASE", "arialbd.ttf", int(0.75 * h), int(0.045 * w), start_size=int(0.022 * h))
@@ -676,8 +676,50 @@ class ImageTranslator:
                 rot_im = txt_im.rotate(90, expand=True)
                 im.paste(rot_im, (spine_box[0] + (spine_box[2] - spine_box[0] - rot_im.width) // 2, spine_box[1] + int(0.05 * h)), rot_im)
 
-            # 2. Right Gray Panel (covers '磁吸磨砂壳', '磨砂背板', '适用于:')
-            # Extends from phone edge (0.55W) to 1.0W while preserving icons at 0.46H..0.51H
+                # 2. Right AF Lens Badge Header
+                badge_box = self.scale_box((0.55, 0.155, 0.96, 0.235), w, h)
+                draw.rounded_rectangle(badge_box, radius=int(0.025 * w), fill=(255, 235, 215), outline=(30, 30, 30), width=int(max(2, 0.003 * w)))
+                dark_pill = self.scale_box((0.555, 0.16, 0.705, 0.23), w, h)
+                draw.rounded_rectangle(dark_pill, radius=int(0.022 * w), fill=(15, 15, 15))
+                f_ug, uw, uh, _ = self.fit_text(draw, "UPGRADE", "arialbd.ttf", int(0.13 * w), int(0.05 * h), start_size=int(0.025 * w))
+                draw.text((dark_pill[0] + (dark_pill[2] - dark_pill[0] - uw) // 2, dark_pill[1] + (dark_pill[3] - dark_pill[1] - uh) // 2), "UPGRADE", fill=(255, 255, 255), font=f_ug)
+                f_bt, btw, bth, _ = self.fit_text(draw, "AF LENS FILM", "arialbd.ttf", int(0.22 * w), int(0.05 * h), start_size=int(0.025 * w))
+                draw.text((dark_pill[2] + int(0.02 * w), badge_box[1] + (badge_box[3] - badge_box[1] - bth) // 2), "AF LENS FILM", fill=(20, 20, 20), font=f_bt)
+
+                # 3. Subtitle [ 1:1 PRECISION FIT ]
+                f_sub, pw, _, _ = self.fit_text(draw, "[ 1:1 PRECISION FIT ]", "arialbd.ttf", int(0.38 * w), int(0.05 * h), start_size=int(0.028 * w))
+                draw.text((int(0.60 * w), int(0.26 * h)), "[ 1:1 PRECISION FIT ]", fill=(40, 40, 40), font=f_sub)
+
+                # 4. Color name
+                c_str = "DESERT GOLD"
+                f_col, cw, _, _ = self.fit_text(draw, c_str, "arialbd.ttf", int(0.40 * w), int(0.07 * h), start_size=int(0.046 * w))
+                draw.text(((int(0.55 * w) + int(0.96 * w) - cw) // 2, int(0.33 * h)), c_str, fill=(15, 15, 15), font=f_col)
+
+                # 5. Craft description
+                f_cr, crw, _, _ = self.fit_text(draw, "FULL LENS COVER | 3D LASER CRAFT", "segoeuib.ttf", int(0.40 * w), int(0.04 * h), start_size=int(0.022 * w))
+                draw.text((int(0.56 * w), int(0.49 * h)), "FULL LENS COVER | 3D LASER CRAFT", fill=(60, 60, 60), font=f_cr)
+
+                # 6. Model pill
+                m_pill = self.scale_box((0.56, 0.55, 0.96, 0.61), w, h)
+                draw.rounded_rectangle(m_pill, radius=int(0.028 * h), fill=(15, 15, 15))
+                m_str = f"FOR: {model_name.upper()}"
+                f_m, mw, mh, _ = self.fit_text(draw, m_str, "arialbd.ttf", int(0.36 * w), int(0.045 * h), start_size=int(0.026 * w))
+                draw.text((m_pill[0] + (m_pill[2] - m_pill[0] - mw) // 2, m_pill[1] + (m_pill[3] - m_pill[1] - mh) // 2), m_str, fill=(255, 255, 255), font=f_m)
+
+                # 7. Bottom 3 badge pills
+                badges = [
+                    ((0.80, 0.655, 0.96, 0.705), "BUILT-IN LENS FILM"),
+                    ((0.83, 0.775, 0.99, 0.825), "CLEAR PHOTOS"),
+                    ((0.78, 0.900, 0.98, 0.950), "ANTI-GLARE HD"),
+                ]
+                for b_box, b_text in badges:
+                    scaled_b = self.scale_box(b_box, w, h)
+                    draw.rounded_rectangle(scaled_b, radius=int(0.025 * h), fill=(255, 235, 215), outline=(30, 30, 30), width=int(max(2, 0.002 * w)))
+                    f_sm, bw, bh, _ = self.fit_text(draw, b_text, "arialbd.ttf", int((b_box[2] - b_box[0]) * w * 0.85), int((b_box[3] - b_box[1]) * h * 0.65), start_size=int(0.015 * w))
+                    draw.text((scaled_b[0] + (scaled_b[2] - scaled_b[0] - bw) // 2, scaled_b[1] + (scaled_b[3] - scaled_b[1] - bh) // 2), b_text, fill=(30, 30, 30), font=f_sm)
+                return
+
+            # 800x800 Frosted PC showcase (Realme Neo8 style)
             bg = (175, 175, 175)
 
             # Block 1: Title covering '磁吸磨砂壳' without cutting glyphs
