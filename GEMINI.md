@@ -40,7 +40,7 @@
   8. `source link`: MoveOn base URL or source label.
   9. `link`: Exact product link.
   10. `Local Image Path`: Relative local filepath to the variant image (e.g., `Realme Neo8/Liquid Silicone/sku/RN8-SIL-WT-S.jpg`).
-  11. `product price`: Base unit procurement price in BDT (collected from MoveOn dropship price * 1.1703).
+  11. `product price`: Base unit procurement price in BDT (collected directly from MoveOn dropship/offer price, which is natively in BDT; do NOT multiply by 1.1703).
   12. `china delivery`: China domestic logistics share per unit (manual input by user, default 10.0 BDT).
   13. `air shipping`: International air freight share per unit (`weight x 2 x 780/kg`, default 50.0 BDT).
   14. `bd delivery`: Bangladesh local delivery share per unit (fixed 5.0 BDT).

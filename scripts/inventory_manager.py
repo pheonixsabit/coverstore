@@ -455,8 +455,8 @@ def sync_inventory():
             dropship = price_dict.get("dropship", {})
             price_val = dropship.get("offer_price") or price_dict.get("original") or 34.0935
             
-            # Wholesale BDT price (MoveOn dropship price * 1.1703)
-            prod_price = round(float(price_val) * 1.1703, 2)
+            # Wholesale BDT price (MoveOn dropship/offer price is natively in BDT)
+            prod_price = round(float(price_val), 2)
             china_del = 10.0
             air_ship = 50.0
             bd_del = 5.0
@@ -565,7 +565,7 @@ def append_downloaded_product(
             price_dict = sku.get("price", {})
             dropship = price_dict.get("dropship", {})
             price_val = dropship.get("offer_price") or price_dict.get("original") or 34.0935
-            prod_price = round(float(price_val) * 1.1703, 2)
+            prod_price = round(float(price_val), 2)
             # Extract SKU weight and compute air shipping: weight * 2 * 780 BDT/kg
             sku_weight = 0.0
             for rs in product_info.get("raw_data", {}).get("variation", {}).get("skus", {}).get("data", []):
