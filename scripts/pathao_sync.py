@@ -260,22 +260,22 @@ class PathaoCommerceClient:
         If login or OTP is needed, conducts login flow.
         """
         print("[*] Checking Pathao Commerce authentication status...")
-        self.page.goto(PATHAO_BASE_URL, timeout=45000)
+        self.page.goto(PATHAO_SIGNIN_URL, timeout=45000)
         self.page.wait_for_load_state("networkidle")
         time.sleep(2)
 
-        # Check if redirected to sign-in
-        curr_url = self.page.url
-        if "sign-in" in curr_url or "login" in curr_url:
-            print("[*] Authentication required. Navigating to sign-in page...")
+        # Check if login form is present
+        login_input = self.page.query_selector("input[placeholder*='email or phone'], input#login_password")
+        if login_input:
+            print("[*] Authentication required. Submitting Pathao Commerce credentials...")
             email = os.environ.get("PATHAO_PHONE") or os.environ.get("PATHAO_EMAIL_OR_PHONE") or os.environ.get("PATHAO_EMAIL")
             password = os.environ.get("PATHAO_PASSWORD")
 
             if not email or not password:
                 print("\n" + "!"*70)
-                print(" [!] Missing PATHAO_EMAIL_OR_PHONE or PATHAO_PASSWORD in .env")
+                print(" [!] Missing PATHAO_EMAIL_OR_PHONE/PATHAO_PHONE or PATHAO_PASSWORD in .env")
                 print("     Please configure your credentials in .env to allow automated login:")
-                print("     PATHAO_EMAIL_OR_PHONE=your_email_or_phone")
+                print("     PATHAO_PHONE=01780404797")
                 print("     PATHAO_PASSWORD=your_password")
                 print("!"*70 + "\n")
                 return False
@@ -286,10 +286,10 @@ class PathaoCommerceClient:
                 self.page.fill("input[placeholder*='email or phone'], input[type='text']", email)
                 self.page.fill("input#login_password, input[type='password']", password)
                 
-                print("[*] Submitted credentials, clicking Sign In...")
+                print("[*] Submitting credentials, clicking Sign In...")
                 self.page.click("button[type='submit']")
                 self.page.wait_for_load_state("networkidle")
-                time.sleep(3)
+                time.sleep(4)
 
                 # Check for OTP requirement
                 page_text = self.page.content().lower()
@@ -307,9 +307,11 @@ class PathaoCommerceClient:
                         time.sleep(3)
                         self.page.wait_for_load_state("networkidle")
 
-                # Verify successful login
-                if "sign-in" not in self.page.url and "login" not in self.page.url:
-                    print(f"[✓] Successfully authenticated to Pathao Commerce! Current URL: {self.page.url}")
+                # Verify successful login by checking presence of dashboard/products
+                time.sleep(2)
+                curr_content = self.page.content()
+                if "Dashboard" in curr_content or "Zayo tech hub" in curr_content or "Products" in curr_content:
+                    print(f"[✓] Successfully authenticated to Pathao Commerce! Active Store: Zayo tech hub")
                     self.save_session()
                     return True
                 else:
@@ -319,7 +321,7 @@ class PathaoCommerceClient:
                 print(f"[!] Error during login interaction: {e}")
                 return False
         else:
-            print(f"[✓] Already authenticated via stored session! Current URL: {curr_url}")
+            print(f"[✓] Already authenticated via stored session! Active Store: Zayo tech hub")
             return True
 
     def sync_product(self, product: Dict[str, Any]) -> bool:
