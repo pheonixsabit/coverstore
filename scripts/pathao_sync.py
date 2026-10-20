@@ -658,9 +658,10 @@ def main():
     parser.add_argument("--link", type=str, default=None, help="Sync only a specific MoveOn product URL")
     parser.add_argument("--limit", type=int, default=None, help="Limit number of parent products to sync")
     parser.add_argument("--json", action="store_true", help="Output execution report in JSON format")
+    parser.add_argument("--no-preorder", action="store_true", help="Do not format product titles or descriptions as pre-order")
     args = parser.parse_args()
 
-    products = load_and_group_inventory()
+    products = load_and_group_inventory(is_preorder=not args.no_preorder)
     if not products:
         print("[!] No products found in inventory.")
         if args.json:
