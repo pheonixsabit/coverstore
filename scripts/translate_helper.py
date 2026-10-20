@@ -657,187 +657,31 @@ def translate_in_place(gallery_dir: str, sku_dir: str, material: str = "Liquid S
     """
     Translates all images containing non-English text directly in-place,
     replacing the original file in \\gallery\\ and \\sku\\.
+    Delegates to ImageTranslator with full normalized relative coordinates,
+    gradient inpainting, typography autoscaling, and watermark removal.
     """
-    is_tpu = "tpu" in material.lower()
-    is_graphene = ("neo8" in model_name.lower() or "neo8" in gallery_dir.lower()) and "silicone" in material.lower() and "liquid" not in material.lower()
-    is_frosted_pc = ("neo8" in model_name.lower() or "neo7" in model_name.lower()) and ("pc" in material.lower() or "pet" in material.lower() or "hard" in material.lower())
-    is_pc = ("pc" in material.lower() or "hard" in material.lower() or "pet" in material.lower()) and not is_frosted_pc
-    is_stand = is_tpu and ("x80" in model_name.lower() or "x70" in model_name.lower() or "x60" in model_name.lower() or "stand" in gallery_dir.lower())
-    is_moire = ("silicone" in material.lower() and ("honor" in model_name.lower() or "600 lite" in model_name.lower())) or "moire" in material.lower() or "moire" in gallery_dir.lower()
+    from image_translator import ImageTranslator
+    translator = ImageTranslator()
 
     # 1. Process gallery images
     if os.path.exists(gallery_dir):
-        for f in os.listdir(gallery_dir):
+        files = sorted(os.listdir(gallery_dir))
+        for idx, f in enumerate(files, 1):
             if not f.lower().endswith(('.jpg', '.jpeg', '.png', '.webp')):
                 continue
             path = os.path.join(gallery_dir, f)
-            if is_graphene:
-                if "01" in f:
-                    translate_graphene_banner_800(path, "TERRACOTTA ORANGE", model_name, path)
-                    print(f"    [✓] In-place translated Graphene Silicone showcase: {f}")
-                elif "02" in f:
-                    translate_graphene_banner_800(path, "MATTE GRAY", model_name, path)
-                    print(f"    [✓] In-place translated Graphene Silicone showcase: {f}")
-                elif "03" in f:
-                    translate_graphene_banner_800(path, "OBSIDIAN BLACK", model_name, path)
-                    print(f"    [✓] In-place translated Graphene Silicone showcase: {f}")
-                elif "04" in f:
-                    translate_graphene_gallery_04(path, path)
-                    print(f"    [✓] In-place translated Graphene Heat Conduction: {f}")
-                elif "05" in f:
-                    translate_graphene_gallery_05(path, path)
-                    print(f"    [✓] In-place translated Graphene Airbag Protection: {f}")
-            elif is_frosted_pc:
-                if "01" in f:
-                    translate_frosted_pc_gallery_01(path, path)
-                    print(f"    [✓] In-place translated Frosted PC showcase: {f}")
-                elif "02" in f:
-                    translate_frosted_pc_sku(path, color_name="PEAK ROCK", model_name=model_name, out_path=path)
-                    print(f"    [✓] In-place translated Frosted PC gallery: {f}")
-                elif "03" in f:
-                    translate_frosted_pc_gallery_03(path, path)
-                    print(f"    [✓] In-place translated Frosted PC lens gallery: {f}")
-                else:
-                    print(f"    [i] Skipped clean 3D graphic image: {f}")
-            elif is_pc:
-                if "01" in f:
-                    translate_magnetic_matte_sku(path, path, color_name="DESERT GOLD", model_name=model_name)
-                    print(f"    [✓] In-place translated Hard PC showcase: {f}")
-                elif "02" in f:
-                    translate_magnetic_matte_gallery_02(path, path)
-                    print(f"    [✓] In-place translated Hard PC gallery: {f}")
-                elif "03" in f:
-                    translate_magnetic_matte_gallery_03(path, path)
-                    print(f"    [✓] In-place translated Hard PC gallery: {f}")
-                elif "04" in f:
-                    translate_magnetic_matte_gallery_04(path, path)
-                    print(f"    [✓] In-place translated Hard PC gallery: {f}")
-                elif "05" in f:
-                    translate_magnetic_matte_gallery_05(path, path)
-                    print(f"    [✓] In-place translated Hard PC gallery: {f}")
-                else:
-                    print(f"    [i] Clean image verified: {f}")
-            elif is_stand:
-                if "01" in f:
-                    translate_stand_tpu_gallery_01(path, path)
-                    print(f"    [✓] In-place translated Stand TPU showcase: {f}")
-                else:
-                    print(f"    [i] Skipped clean studio/lifestyle image: {f}")
-            elif is_moire:
-                if "01" in f:
-                    translate_moire_gallery_01(path, path)
-                    print(f"    [✓] In-place translated Moiré showcase: {f}")
-                else:
-                    print(f"    [i] Skipped clean studio image: {f}")
-            elif is_tpu:
-                if "01" in f:
-                    translate_tpu_gallery_01(path, path, model_name=model_name)
-                    print(f"    [✓] In-place translated TPU showcase: {f}")
-                elif "02" in f:
-                    translate_tpu_gallery_02(path, path)
-                    print(f"    [✓] In-place translated TPU gallery: {f}")
-                elif "03" in f:
-                    translate_tpu_gallery_03(path, path)
-                    print(f"    [✓] In-place translated TPU gallery: {f}")
-                elif "04" in f:
-                    translate_tpu_gallery_04(path, path)
-                    print(f"    [✓] In-place translated TPU gallery: {f}")
-                else:
-                    print(f"    [i] Skipped clean image (no text overlay): {f}")
-            else:
-                if "01" in f:
-                    translate_top_banner_shelf(path, path)
-                    print(f"    [✓] In-place translated showcase: {f}")
-                elif "05" in f:
-                    print(f"    [i] Skipped clean image (no text): {f}")
-                else:
-                    translate_top_banner_colored(path, path)
-                    print(f"    [✓] In-place translated gallery: {f}")
+            translator.process_gallery_image(path, model_name=model_name, material=material, index=idx)
+            print(f"    [✓] In-place translated gallery image: {f}")
 
     # 2. Process SKU images
     if os.path.exists(sku_dir):
-        for f in os.listdir(sku_dir):
+        files = sorted(os.listdir(sku_dir))
+        for f in files:
             if not f.lower().endswith(('.jpg', '.jpeg', '.png', '.webp')):
                 continue
             path = os.path.join(sku_dir, f)
-            if is_graphene:
-                col_name = "OBSIDIAN BLACK"
-                if "-GY-" in f:
-                    col_name = "MATTE GRAY"
-                elif "-OR-" in f:
-                    col_name = "TERRACOTTA ORANGE"
-                translate_graphene_banner_800(path, col_name, model_name, path)
-                print(f"    [✓] In-place translated Graphene Silicone SKU ({col_name}): {f}")
-            elif is_frosted_pc:
-                col_name = "CLASSIC BLACK"
-                if "-RK-" in f:
-                    col_name = "PEAK ROCK"
-                elif "-GD-" in f:
-                    col_name = "DESERT GOLD"
-                elif "-BL-" in f:
-                    col_name = "WAVE BLUE"
-                elif "-PK-" in f:
-                    col_name = "SAKURA PINK"
-                elif "-CG-" in f:
-                    col_name = "CARBON GRAY"
-                elif "-PR-" in f:
-                    col_name = "SUNSET PURPLE"
-                elif "-TG-" in f:
-                    col_name = "TITANIUM GRAY"
-                elif "-BK-" in f:
-                    col_name = "CLASSIC BLACK"
-                translate_frosted_pc_sku(path, color_name=col_name, model_name=model_name, out_path=path)
-                print(f"    [✓] In-place translated Frosted PC SKU ({col_name}): {f}")
-            elif is_pc:
-                color_name = "TITANIUM GRAY"
-                if "-GY-" in f:
-                    color_name = "TITANIUM GRAY"
-                elif "-WT-" in f:
-                    color_name = "SILVER WHITE"
-                elif "-GN-" in f:
-                    color_name = "FEITIAN GREEN"
-                elif "-GD-" in f:
-                    color_name = "DESERT GOLD"
-                elif "-BK-" in f:
-                    color_name = "GRAPHITE BLACK"
-                translate_magnetic_matte_sku(path, path, color_name=color_name, model_name=model_name)
-                print(f"    [✓] In-place translated Hard PC SKU: {f} ({color_name})")
-            elif is_stand:
-                col_name = "CLEAR"
-                if "-SV-" in f or "silver" in f.lower():
-                    col_name = "SILVER"
-                elif "-BK-" in f or "black" in f.lower():
-                    col_name = "CLASSIC BLACK"
-                elif "-PR-" in f or "purple" in f.lower():
-                    col_name = "DEEP PURPLE"
-                elif "-BL-" in f or "blue" in f.lower():
-                    col_name = "PACIFIC BLUE"
-                elif "-PK-" in f or "pink" in f.lower():
-                    col_name = "ROSE PINK"
-                elif "-GN-" in f or "green" in f.lower():
-                    col_name = "PINE GREEN"
-                elif "-CL-" in f or "transparent" in f.lower():
-                    col_name = "CRYSTAL CLEAR"
-                translate_stand_tpu_sku(path, col_name, path)
-                print(f"    [✓] In-place translated Stand TPU SKU ({col_name}): {f}")
-            elif is_moire:
-                col_name = "MOIRÉ"
-                if "-BK-" in f:
-                    col_name = "MOIRÉ BLACK"
-                elif "-BL-" in f:
-                    col_name = "GENTLEMAN BLUE"
-                elif "-GN-" in f:
-                    col_name = "DARK NIGHT GREEN"
-                elif "-RD-" in f:
-                    col_name = "CHARMING RED"
-                translate_moire_sku(path, col_name, path)
-                print(f"    [✓] In-place translated Moiré SKU ({col_name}): {f}")
-            elif is_tpu:
-                print(f"    [i] Clean studio SKU image verified: {f}")
-            else:
-                if "-CL-" in f or "Transparent" in f:
-                    translate_side_banner_blue(path, path)
-                    print(f"    [✓] In-place translated clear SKU: {f}")
-                else:
-                    translate_top_banner_colored(path, path)
-                    print(f"    [✓] In-place translated colored SKU: {f}")
+            sku_code = os.path.splitext(f)[0]
+            color_name = translator._infer_color_from_sku(sku_code)
+            translator.process_sku_image(path, sku_code=sku_code, model_name=model_name, material=material, color_name=color_name)
+            print(f"    [✓] In-place translated SKU image ({color_name}): {f}")
+

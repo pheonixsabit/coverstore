@@ -1,5 +1,6 @@
 import re
-from typing import Optional, Dict
+import sys
+from typing import Optional, Dict, Set
 
 # Known Phone Model Abbreviations
 MODEL_RULES = [
@@ -63,11 +64,6 @@ MODEL_RULES = [
     (r'honor\s*x(\d+)\s*gt', r'HX\1GT'),
     (r'honor\s*x(\d+)\s*i\+?', r'HX\1I'),
     (r'honor\s*x(\d+)', r'HX\1'),
-    (r'honor\s*magic\s*(\d+)\s*pro', r'HM\1P'),
-    (r'honor\s*magic\s*(\d+)', r'HM\1'),
-    (r'honor\s*(\d+)\s*lite', r'H\1L'),
-    (r'honor\s*(\d+)\s*pro', r'H\1P'),
-    (r'honor\s*(\d+)', r'H\1'),
 ]
 
 # Material Abbreviations
@@ -198,12 +194,74 @@ def disambiguate_sku(base_sku: str, existing_skus: set) -> str:
         candidate = f"{base_sku}-V{version}"
     return candidate
 
-def generate_sku(model: str, material: str, color_or_variant: str, context_title: str = "", existing_skus: Optional[set] = None) -> str:
+def resolve_sku_collision(
+    base_sku: str,
+    existing_skus: set,
+    variant_label: str = "",
+    interactive: bool = True
+) -> str:
+    """
+    Enforces Rule 7 Duplicate SKU Collision & /grill-me Standard:
+    When a SKU collides with an existing SKU or another variant,
+    suggests a candidate unique SKU (-V2, -V3, ...)
+    and prompts user if interactive, or logs and applies candidate if non-interactive.
+    """
+    if not existing_skus or base_sku not in existing_skus:
+        return base_sku
+
+    candidate = disambiguate_sku(base_sku, existing_skus)
+    print("\n" + "="*65)
+    print(" [!] DUPLICATE SKU COLLISION DETECTED (Rule 7 /grill-me Standard)")
+    print(f"     Variant Label: {variant_label or 'N/A'}")
+    print(f"     Conflicting Base SKU: {base_sku}")
+    print(f"     Suggested Disambiguated SKU: {candidate}")
+    print("="*65)
+
+    chosen_sku = candidate
+    if interactive and sys.stdin.isatty():
+        try:
+            prompt_str = f"Confirm candidate unique SKU or enter custom code [{candidate}]: "
+            user_input = input(prompt_str).strip()
+            if user_input:
+                chosen_sku = user_input.upper()
+                if chosen_sku in existing_skus:
+                    print(f"    [!] '{chosen_sku}' is already taken. Generating unique suffix...")
+                    chosen_sku = disambiguate_sku(chosen_sku, existing_skus)
+                print(f"    [✓] Accepted user SKU: '{chosen_sku}'")
+            else:
+                print(f"    [✓] Accepted candidate SKU: '{candidate}'")
+        except (EOFError, KeyboardInterrupt):
+            print(f"    [✓] Input ended. Defaulting to candidate: '{candidate}'")
+            chosen_sku = candidate
+    else:
+        print(f"    [*] Non-interactive / pipeline mode: Applied disambiguated SKU '{candidate}'")
+
+    return chosen_sku
+
+def register_custom_color_rule(pattern: str, code: str) -> None:
+    """Dynamically registers or updates a color abbreviation rule at highest priority (Rule 7)."""
+    clean_code = code.strip().upper()
+    clean_pat = pattern.strip().lower()
+    regex = r'\b' + re.escape(clean_pat) + r'\b'
+    COLOR_MAP.insert(0, (regex, clean_code))
+
+def register_custom_model_rule(pattern: str, repl: str) -> None:
+    """Dynamically registers or updates a model abbreviation rule at highest priority (Rule 7)."""
+    MODEL_RULES.insert(0, (pattern, repl.strip().upper()))
+
+def generate_sku(
+    model: str,
+    material: str,
+    color_or_variant: str,
+    context_title: str = "",
+    existing_skus: Optional[set] = None,
+    interactive: bool = False
+) -> str:
     """
     Generates a standardized custom SKU string following the format:
     [phonemodel abbreviation]-[material abbreviation]-[color abbreviation]-[print abbreviation]
     Example: RN8-SIL-WT-S
-    If existing_skus is provided, disambiguates collisions with -V2, -V3 suffix.
+    If existing_skus is provided, disambiguates collisions with -V2, -V3 suffix per Rule 7.
     """
     m_abbr = abbreviate_model(model)
     mat_abbr = abbreviate_material(material)
@@ -214,8 +272,8 @@ def generate_sku(model: str, material: str, color_or_variant: str, context_title
     p_abbr = abbreviate_print(full_context)
     
     base_sku = f"{m_abbr}-{mat_abbr}-{c_abbr}-{p_abbr}"
-    if existing_skus:
-        return disambiguate_sku(base_sku, existing_skus)
+    if existing_skus and base_sku in existing_skus:
+        return resolve_sku_collision(base_sku, existing_skus, variant_label=color_or_variant, interactive=interactive)
     return base_sku
 
 if __name__ == "__main__":

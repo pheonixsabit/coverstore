@@ -14,11 +14,21 @@ if sys.platform == "win32":
     except Exception:
         pass
 
+SCRIPTS_DIR = os.path.abspath(os.path.dirname(__file__))
+if SCRIPTS_DIR not in sys.path:
+    sys.path.insert(0, SCRIPTS_DIR)
+
+import shutil
 from moveon_client import MoveOnClient, sanitize_filename
 from material_detector import detect_material
 from translate_helper import translate_in_place
-from sku_generator import generate_sku, disambiguate_sku
-from inventory_manager import append_downloaded_product
+from sku_generator import generate_sku, disambiguate_sku, resolve_sku_collision
+from inventory_manager import (
+    append_downloaded_product,
+    prompt_china_delivery,
+    get_existing_skus,
+    load_existing_inventory
+)
 
 WORKSPACE_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 
@@ -207,6 +217,10 @@ def main():
     for m in selected_models:
         print(f"   - {m['clean_name']}")
 
+    # Load existing inventory SKUs to ensure collision detection prior to file creation (Rule 7)
+    existing_inventory = load_existing_inventory()
+    existing_skus = {r.get("Product Code", "").strip() for r in existing_inventory if r.get("Product Code")}
+
     # 3. Process each selected model
     for model_meta in selected_models:
         model_name = model_meta['clean_name']
@@ -245,23 +259,49 @@ def main():
                 model_skus.extend(v)
 
         print(f"\n[*] Downloading {len(model_skus)} SKU variant images into \\sku\\...")
-        downloaded_images = set()
-        seen_skus = set()
+        url_to_local_cache: Dict[str, str] = {}
         for idx, sku in enumerate(model_skus, 1):
-            img_url = sku.get('image')
-            if not img_url or img_url in downloaded_images:
-                continue
-            downloaded_images.add(img_url)
+            img_url = sku.get('image') or product_info.get('main_image')
+            variant_label = sku.get('variant_label', '')
+            base_code = generate_sku(model_name, material, variant_label, title)
 
-            base_code = generate_sku(model_name, material, sku.get('variant_label', ''), title)
-            sku_code = disambiguate_sku(base_code, seen_skus)
-            seen_skus.add(sku_code)
-            if sku_code != base_code:
-                print(f"    [!] Disambiguated duplicate SKU image: '{base_code}' -> '{sku_code}'")
-            ext = os.path.splitext(img_url.split('?')[0])[-1] or ".jpg"
+            # Check if variant already has an existing SKU for this exact URL and model
+            existing_sku_for_variant = None
+            for r in existing_inventory:
+                if r.get("link") == url and r.get("Phone Model") == model_name:
+                    r_color = (r.get("Color") or "").strip().lower()
+                    if r_color and (r_color in variant_label.lower() or variant_label.lower() in r_color):
+                        existing_sku_for_variant = r.get("Product Code")
+                        break
+
+            if existing_sku_for_variant:
+                sku_code = existing_sku_for_variant
+            elif base_code in existing_skus:
+                sku_code = resolve_sku_collision(base_code, existing_skus, variant_label=variant_label, interactive=True)
+            else:
+                sku_code = base_code
+
+            sku['resolved_sku'] = sku_code
+            existing_skus.add(sku_code)
+
+            ext = os.path.splitext(img_url.split('?')[0])[-1] if img_url else ".jpg"
+            if not ext or len(ext) > 5:
+                ext = ".jpg"
             dest_file = os.path.join(sku_dir, f"{sku_code}{ext}")
-            download_file(img_url, dest_file)
-            print(f"    [+] Saved SKU: {sku_code} -> {dest_file}")
+
+            # Ensure every variant has its file on disk; if shared URL, copy from cached local file
+            if img_url:
+                if img_url in url_to_local_cache and os.path.exists(url_to_local_cache[img_url]):
+                    shutil.copyfile(url_to_local_cache[img_url], dest_file)
+                    print(f"    [+] Saved SKU (reused cached variant image): {sku_code} -> {dest_file}")
+                else:
+                    if download_file(img_url, dest_file):
+                        url_to_local_cache[img_url] = dest_file
+                        print(f"    [+] Saved SKU: {sku_code} -> {dest_file}")
+                    else:
+                        print(f"    [!] Warning: Failed downloading variant image from {img_url}")
+            else:
+                print(f"    [!] Warning: No image URL available for variant {sku_code}")
 
         # In-place translation: replace original non-English images directly
         print(f"\n[*] In-place translating non-English images in \\gallery\\ and \\sku\\...")
@@ -271,20 +311,14 @@ def main():
         print(f"    Gallery Images: {len(os.listdir(gallery_dir))} in {gallery_dir}")
         print(f"    SKU Images:     {len(os.listdir(sku_dir))} in {sku_dir}")
 
-    # 4. Automatically sync/append to inventory records (inventory.csv and inventory.xlsx)
+    # 4. Enforce mandatory China domestic delivery charge (Rule 9) and update inventory records
     print("\n[*] Updating inventory records (inventory.csv / inventory.xlsx)...")
-    china_delivery = args.china_delivery
-    if china_delivery is None:
-        try:
-            china_del_str = input("Enter China domestic delivery fee in BDT per unit [default 10.0]: ").strip()
-            china_delivery = float(china_del_str) if china_del_str else 10.0
-        except Exception:
-            china_delivery = 10.0
-
     try:
+        china_delivery = prompt_china_delivery(args.china_delivery)
         append_downloaded_product(product_info, selected_models, material, url, china_del=china_delivery)
     except Exception as e:
-        print(f"[!] Warning: Failed to update inventory records: {e}")
+        print(f"[!] Error updating inventory records: {e}")
+        raise
 
     # 4b. Optionally sync to Pathao Commerce
     if getattr(args, "sync_pathao", False):

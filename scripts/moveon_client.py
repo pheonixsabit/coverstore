@@ -287,7 +287,7 @@ class MoveOnClient:
 
         gallery_urls = []
         for item in gallery_items:
-            img = item.get('image') if isinstance(item, dict) else item
+            img = (item.get('url') or item.get('image') or item.get('src')) if isinstance(item, dict) else item
             if img and img not in gallery_urls:
                 gallery_urls.append(img)
         if main_image and main_image not in gallery_urls:

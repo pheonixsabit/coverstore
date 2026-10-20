@@ -18,8 +18,12 @@ if sys.platform == "win32":
     except Exception:
         pass
 
+SCRIPTS_DIR = os.path.abspath(os.path.dirname(__file__))
+if SCRIPTS_DIR not in sys.path:
+    sys.path.insert(0, SCRIPTS_DIR)
+
 from moveon_client import MoveOnClient, extract_product_id_from_url
-from sku_generator import generate_sku, disambiguate_sku
+from sku_generator import generate_sku, disambiguate_sku, resolve_sku_collision
 
 WORKSPACE_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 INVENTORY_CSV_PATH = os.path.join(WORKSPACE_ROOT, "inventory.csv")
@@ -74,6 +78,62 @@ def clean_float(val: Any, default: float = 0.0) -> float:
         return float(val_str)
     except (ValueError, TypeError):
         return default
+
+def load_existing_inventory(csv_path: str = INVENTORY_CSV_PATH) -> List[Dict[str, str]]:
+    """Loads existing inventory rows from inventory.csv (UTF-8 BOM)."""
+    if not os.path.exists(csv_path):
+        return []
+    try:
+        with open(csv_path, "r", encoding="utf-8-sig") as f:
+            return list(csv.DictReader(f))
+    except Exception:
+        return []
+
+def get_existing_skus(csv_path: str = INVENTORY_CSV_PATH) -> set:
+    """Returns a set of all non-empty Product Code strings in inventory.csv."""
+    rows = load_existing_inventory(csv_path)
+    return {r.get("Product Code", "").strip() for r in rows if r.get("Product Code")}
+
+def prompt_china_delivery(cli_val: Optional[float] = None) -> float:
+    """
+    Enforces Rule 9 Mandatory China Domestic Delivery Charge Standard:
+    Never assume, hardcode, or silently default China domestic delivery charge.
+    Requires explicit value or interactively prompts user.
+    Raises ValueError if run non-interactively without explicit charge.
+    """
+    if cli_val is not None:
+        val = clean_float(cli_val)
+        if val < 0:
+            raise ValueError(f"Invalid China domestic delivery charge: {cli_val}. Must be >= 0.")
+        print(f"[✓] China domestic delivery charge applied: {val:.2f} BDT")
+        return val
+
+    # If running interactively, prompt the user
+    if sys.stdin.isatty():
+        print("\n" + "="*65)
+        print(" [!] MANDATORY CHINA DOMESTIC DELIVERY CHARGE (Rule 9)")
+        print("     Never assume, hardcode, or silently default logistics costs.")
+        print("="*65)
+        while True:
+            try:
+                raw_input = input("Enter exact China domestic delivery fee in BDT per unit: ").strip()
+                if not raw_input:
+                    print(" [!] Error: Delivery fee cannot be empty. Please enter a valid number (e.g. 10.0, 15.0).")
+                    continue
+                val = float(raw_input)
+                if val < 0:
+                    print(" [!] Error: Delivery fee cannot be negative.")
+                    continue
+                return val
+            except ValueError:
+                print(" [!] Error: Invalid numeric input. Please enter a valid float (e.g. 10.0).")
+            except (EOFError, KeyboardInterrupt):
+                raise ValueError("Mandatory China domestic delivery charge prompt was cancelled.")
+    else:
+        raise ValueError(
+            "Mandatory China domestic delivery charge (Rule 9) is required. "
+            "When running non-interactively or in automated pipelines, provide --china-delivery <BDT>."
+        )
 
 def calculate_landing_cost(product_price: float, china_del: float, air_ship: float, bd_del: float, packaging: float = 11.5, printing: float = 20.0, other: float = 0.0) -> float:
     """Calculates landing cost as the sum of product price and all logistics/overhead expenses."""
@@ -508,7 +568,7 @@ def append_downloaded_product(
     selected_models: List[Dict[str, str]],
     material: str,
     product_url: str,
-    china_del: float = 10.0,
+    china_del: Optional[float] = None,
     air_ship: Optional[float] = None,
     bd_del: float = 5.0,
     packaging: float = 11.5,
@@ -516,8 +576,14 @@ def append_downloaded_product(
     other: float = 0.0
 ):
     """
-    Appends newly downloaded product variants into inventory.csv and inventory.xlsx using 20-column schema.
+    Appends newly downloaded product variants into inventory.csv and inventory.xlsx using 21-column schema.
+    Mandatory China domestic delivery charge is enforced per Rule 9.
     """
+    if china_del is None:
+        china_del = prompt_china_delivery()
+    else:
+        china_del = clean_float(china_del)
+
     title = product_info.get("title", "")
     skus_by_model = product_info.get("skus_by_model", {})
 
@@ -536,6 +602,7 @@ def append_downloaded_product(
             pass
 
     new_rows = []
+    updated_count = 0
     for model_meta in selected_models:
         model_name = model_meta["clean_name"]
         model_skus = skus_by_model.get(model_name, [])
@@ -545,12 +612,14 @@ def append_downloaded_product(
 
         for sku in model_skus:
             variant_label = sku.get("variant_label", "")
-            base_code = generate_sku(model_name, material, variant_label, title)
-            if base_code in existing_codes:
-                sku_code = disambiguate_sku(base_code, existing_codes)
-                print(f"    [!] Duplicate SKU collision: '{base_code}' -> Disambiguated to '{sku_code}'")
+            if sku.get("resolved_sku"):
+                sku_code = sku["resolved_sku"]
             else:
-                sku_code = base_code
+                base_code = generate_sku(model_name, material, variant_label, title)
+                if base_code in existing_codes:
+                    sku_code = resolve_sku_collision(base_code, existing_codes, variant_label=variant_label, interactive=False)
+                else:
+                    sku_code = base_code
             existing_codes.add(sku_code)
 
             color_name = variant_label
@@ -616,17 +685,42 @@ def append_downloaded_product(
                 "sell price": sell_p,
                 "max discount": max_d
             }
-            new_rows.append(row)
 
+            # If row already exists in existing_rows for this product link and SKU, update in-place
+            updated_existing = False
+            for r in existing_rows:
+                if r.get("link") == product_url and r.get("Product Code") == sku_code:
+                    r["SEO Title"] = row["SEO Title"]
+                    r["Product Name"] = row["Product Name"]
+                    r["Material"] = row["Material"]
+                    r["Color"] = row["Color"]
+                    r["Phone Model"] = row["Phone Model"]
+                    r["product price"] = prod_price
+                    r["china delivery"] = china_del
+                    r["air shipping"] = sku_air_ship
+                    r["bd delivery"] = bd_del
+                    r["packaging"] = packaging
+                    r["printing"] = printing
+                    r["other"] = other
+                    r["landing cost"] = landing
+                    r["margin"] = margin_val
+                    r["sell price"] = sell_p
+                    r["max discount"] = max_d
+                    r["Local Image Path"] = local_path
+                    updated_existing = True
+                    updated_count += 1
+                    break
+
+            if not updated_existing:
+                new_rows.append(row)
+
+    all_rows = existing_rows + new_rows
+    save_to_csv(all_rows)
+    save_to_excel(all_rows)
     if new_rows:
-        all_rows = existing_rows + new_rows
-        save_to_csv(all_rows)
-        save_to_excel(all_rows)
         print(f"[+] Appended {len(new_rows)} new SKU records to inventory.csv and inventory.xlsx")
-    else:
-        # Ensure inventory.xlsx has all records matching CSV
-        save_to_excel(existing_rows)
-        print(f"[+] All {len(existing_codes)} SKU records are already up to date in inventory.csv and inventory.xlsx")
+    if updated_count:
+        print(f"[+] Updated {updated_count} existing SKU records in inventory.csv and inventory.xlsx")
 
 def sync_csv_to_excel(csv_path: str = INVENTORY_CSV_PATH, xlsx_path: str = INVENTORY_XLSX_PATH) -> int:
     """Reads inventory.csv and regenerates inventory.xlsx with styled headers and dynamic formulas."""
@@ -641,8 +735,18 @@ def sync_csv_to_excel(csv_path: str = INVENTORY_CSV_PATH, xlsx_path: str = INVEN
         if not r.get("SEO Title"):
             r["SEO Title"] = generate_seo_title(r.get("Product Name", ""), r.get("Phone Model", ""), r.get("Material", ""))
             updated_csv = True
-    if updated_csv:
+
+    # Ensure inventory.csv has UTF-8 BOM
+    has_bom = False
+    try:
+        with open(csv_path, "rb") as bf:
+            has_bom = bf.read(3) == b'\xef\xbb\xbf'
+    except Exception:
+        pass
+
+    if updated_csv or not has_bom:
         save_to_csv(rows, csv_path)
+
     save_to_excel(rows, xlsx_path)
     print(f"[✓] Successfully synced {len(rows)} records from {os.path.basename(csv_path)} to {os.path.basename(xlsx_path)}")
     return len(rows)
@@ -652,6 +756,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="CoverStore Inventory Manager & Synchronizer")
     parser.add_argument("--update-excel", "-u", action="store_true", help="Synchronize inventory.xlsx directly from inventory.csv")
     parser.add_argument("--sync-live", "-s", action="store_true", help="Perform full live Google Sheet synchronization")
+    parser.add_argument("--china-delivery", "-c", type=float, default=None, help="China domestic delivery fee in BDT per unit")
     args = parser.parse_args()
 
     if args.update_excel:
