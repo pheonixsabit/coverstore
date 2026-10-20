@@ -99,12 +99,16 @@ COLOR_MAP = [
     (r'carbon gray|carbon grey', 'CG'),
     (r'titanium gray|titanium grey|titanium', 'TG'),
     (r'peak rock|rock', 'RK'),
+    (r'lavender gray', 'GY'),
     (r'grass purple|purple|lavender|violet|lilac|sunset purple', 'PR'),
     (r'dark night green|green|emerald|pine|mint|feitianqing|celadon', 'GN'),
     (r'royal blue|blue|navy|sierra blue|pacific|wave blue', 'BL'),
-    (r'lavender gray|gray|grey|silver gray', 'GY'),
+    (r'gray|grey|silver gray', 'GY'),
     (r'camellia red|red|wine|burgundy|crimson', 'RD'),
     (r'light teal|teal|cyan|turquoise|aqua', 'TL'),
+    (r'poplar wood grain|poplar', 'PW'),
+    (r'dark gray wood grain|dark wood', 'DW'),
+    (r'wood grain|wood', 'WD'),
     (r'transparent|clear', 'CL'),
     (r'yellow|lemon', 'YL'),
     (r'sakura pink|pink|rose', 'PK'),
@@ -180,11 +184,26 @@ def abbreviate_print(text: str) -> str:
             return code
     return 'S'
 
-def generate_sku(model: str, material: str, color_or_variant: str, context_title: str = "") -> str:
+def disambiguate_sku(base_sku: str, existing_skus: set) -> str:
+    """
+    Appends a unique disambiguation suffix (-V2, -V3, ...)
+    when base_sku already exists in the provided existing_skus set.
+    """
+    if not existing_skus or base_sku not in existing_skus:
+        return base_sku
+    version = 2
+    candidate = f"{base_sku}-V{version}"
+    while candidate in existing_skus:
+        version += 1
+        candidate = f"{base_sku}-V{version}"
+    return candidate
+
+def generate_sku(model: str, material: str, color_or_variant: str, context_title: str = "", existing_skus: Optional[set] = None) -> str:
     """
     Generates a standardized custom SKU string following the format:
     [phonemodel abbreviation]-[material abbreviation]-[color abbreviation]-[print abbreviation]
     Example: RN8-SIL-WT-S
+    If existing_skus is provided, disambiguates collisions with -V2, -V3 suffix.
     """
     m_abbr = abbreviate_model(model)
     mat_abbr = abbreviate_material(material)
@@ -194,7 +213,10 @@ def generate_sku(model: str, material: str, color_or_variant: str, context_title
     full_context = f"{context_title} {color_or_variant}"
     p_abbr = abbreviate_print(full_context)
     
-    return f"{m_abbr}-{mat_abbr}-{c_abbr}-{p_abbr}"
+    base_sku = f"{m_abbr}-{mat_abbr}-{c_abbr}-{p_abbr}"
+    if existing_skus:
+        return disambiguate_sku(base_sku, existing_skus)
+    return base_sku
 
 if __name__ == "__main__":
     # Test cases

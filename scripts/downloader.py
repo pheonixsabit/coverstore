@@ -17,7 +17,7 @@ if sys.platform == "win32":
 from moveon_client import MoveOnClient, sanitize_filename
 from material_detector import detect_material
 from translate_helper import translate_in_place
-from sku_generator import generate_sku
+from sku_generator import generate_sku, disambiguate_sku
 from inventory_manager import append_downloaded_product
 
 WORKSPACE_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
@@ -244,13 +244,18 @@ def main():
 
         print(f"\n[*] Downloading {len(model_skus)} SKU variant images into \\sku\\...")
         downloaded_images = set()
+        seen_skus = set()
         for idx, sku in enumerate(model_skus, 1):
             img_url = sku.get('image')
             if not img_url or img_url in downloaded_images:
                 continue
             downloaded_images.add(img_url)
 
-            sku_code = generate_sku(model_name, material, sku.get('variant_label', ''), title)
+            base_code = generate_sku(model_name, material, sku.get('variant_label', ''), title)
+            sku_code = disambiguate_sku(base_code, seen_skus)
+            seen_skus.add(sku_code)
+            if sku_code != base_code:
+                print(f"    [!] Disambiguated duplicate SKU image: '{base_code}' -> '{sku_code}'")
             ext = os.path.splitext(img_url.split('?')[0])[-1] or ".jpg"
             dest_file = os.path.join(sku_dir, f"{sku_code}{ext}")
             download_file(img_url, dest_file)

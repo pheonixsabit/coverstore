@@ -63,3 +63,16 @@
   - Creates a descriptive commit (`chore: auto-sync [hostname] [timestamp]`).
   - Pushes directly to `origin main` to keep both PCs in continuous sync.
 
+
+
+## 7. Duplicate SKU Collision & /grill-me Standard
+- **Scope**: Enforced on all future product imports from MoveOn links (legacy inventory records remain untouched).
+- **Trigger Condition**: When two distinct variants generate identical SKU codes, or a newly processed variant's SKU collides with an existing SKU code.
+- **Interactive Resolution**:
+  - Automatically pause and initiate a `/grill-me` interview with the user.
+  - Auto-generate candidate disambiguated codes with a unique suffix (e.g. `-V2`, `-V3`) or custom color/finish abbreviation.
+  - Prompt the user to confirm or edit the suggested unique SKU.
+- **Propagation**:
+  - Apply the confirmed unique SKU to the variant image filename in `sku/` (`[SKU]-V2.jpg`).
+  - Save the unique SKU in `inventory.csv` and `inventory.xlsx`.
+  - Update `COLOR_MAP` or abbreviation rules in `scripts/sku_generator.py` to persist the resolution standard and prevent recurrent collisions.

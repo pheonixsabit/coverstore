@@ -19,7 +19,7 @@ if sys.platform == "win32":
         pass
 
 from moveon_client import MoveOnClient, extract_product_id_from_url
-from sku_generator import generate_sku
+from sku_generator import generate_sku, disambiguate_sku
 
 WORKSPACE_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 INVENTORY_CSV_PATH = os.path.join(WORKSPACE_ROOT, "inventory.csv")
@@ -541,9 +541,12 @@ def append_downloaded_product(
 
         for sku in model_skus:
             variant_label = sku.get("variant_label", "")
-            sku_code = generate_sku(model_name, material, variant_label, title)
-            if sku_code in existing_codes:
-                continue
+            base_code = generate_sku(model_name, material, variant_label, title)
+            if base_code in existing_codes:
+                sku_code = disambiguate_sku(base_code, existing_codes)
+                print(f"    [!] Duplicate SKU collision: '{base_code}' -> Disambiguated to '{sku_code}'")
+            else:
+                sku_code = base_code
             existing_codes.add(sku_code)
 
             color_name = variant_label
