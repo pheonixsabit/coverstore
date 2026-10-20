@@ -148,6 +148,7 @@ def main():
     parser.add_argument("--china-delivery", "-c", type=float, default=None, help="China domestic delivery fee in BDT per unit")
     parser.add_argument("--model", "-m", type=str, default=None, help="Phone model name(s), comma-separated, or 'all'")
     parser.add_argument("--material", type=str, default=None, help="Material override name")
+    parser.add_argument("--version-suffix", type=str, default=None, help="Force a version suffix (e.g. -V2) for SKU disambiguation")
     parser.add_argument("--token", "-t", type=str, default=None, help="MoveOn business account auth token")
     parser.add_argument("--sync-pathao", action="store_true", help="Automatically sync newly downloaded product to Pathao Commerce")
     parser.add_argument("--no-push", action="store_true", help="Skip automatic git commit and push to remote repository")
@@ -240,10 +241,12 @@ def main():
         print("-"*60)
 
         # Download Gallery Images -> \gallery\
-        print(f"[*] Downloading {len(gallery_images)} gallery images into \\gallery\\...")
+        existing_gallery = [f for f in os.listdir(gallery_dir) if f.lower().startswith("gallery_") and f.lower().endswith((".jpg", ".jpeg", ".png", ".webp"))]
+        gal_offset = len(existing_gallery)
+        print(f"[*] Downloading {len(gallery_images)} gallery images into \\gallery\\ (offset {gal_offset})...")
         for idx, img_url in enumerate(gallery_images, 1):
             ext = os.path.splitext(img_url.split('?')[0])[-1] or ".jpg"
-            dest_file = os.path.join(gallery_dir, f"gallery_{idx:02d}{ext}")
+            dest_file = os.path.join(gallery_dir, f"gallery_{idx + gal_offset:02d}{ext}")
             download_file(img_url, dest_file)
             print(f"    [+] Saved: {dest_file}")
 
@@ -276,6 +279,13 @@ def main():
 
             if existing_sku_for_variant:
                 sku_code = existing_sku_for_variant
+            elif getattr(args, "version_suffix", None):
+                suffix = args.version_suffix
+                cand_code = f"{base_code}{suffix}" if not base_code.endswith(suffix) else base_code
+                if cand_code in existing_skus:
+                    sku_code = disambiguate_sku(cand_code, existing_skus)
+                else:
+                    sku_code = cand_code
             elif base_code in existing_skus:
                 sku_code = resolve_sku_collision(base_code, existing_skus, variant_label=variant_label, interactive=True)
             else:

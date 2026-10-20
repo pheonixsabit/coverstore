@@ -358,6 +358,7 @@ class PathaoCommerceClient:
         self.context = None
         self.page = None
         self.last_report: Dict[str, Any] = {}
+        self.last_imported_product_id: Optional[int] = None
 
     def get_session_path(self) -> str:
         return self.session_path or SESSION_FILE_PATH
@@ -546,6 +547,20 @@ class PathaoCommerceClient:
         Executes the 5-step automated bulk import workflow in Pathao Commerce.
         """
         print(f"[*] Navigating to Pathao Commerce Products page for import...")
+        self.last_imported_product_id = None
+
+        def on_import_response(resp):
+            if resp.request.method == "POST" and any(k in resp.url for k in ["/import", "/products"]):
+                try:
+                    data = resp.json()
+                    payload = data.get("data", {}) if isinstance(data, dict) else {}
+                    pid = payload.get("product_id") or payload.get("id") or data.get("product_id") or data.get("id")
+                    if pid:
+                        self.last_imported_product_id = int(pid)
+                except Exception:
+                    pass
+
+        self.page.on("response", on_import_response)
         self.page.goto(f"{PATHAO_BASE_URL}/products", timeout=35000)
         self.page.wait_for_load_state("networkidle")
         time.sleep(2)
@@ -631,16 +646,16 @@ class PathaoCommerceClient:
         cdn_map = self.ensure_media_gallery_assets(product)
 
         # 2. Build Excel import workbook
-        import_filename = f"pathao_import_{product['variants'][0]['sku'].rsplit('-', 2)[0].lower()}.xlsx"
+        base_sku = extract_base_sku(product["variants"][0]["sku"]) if product.get("variants") else "COVER"
+        import_filename = f"pathao_import_{base_sku.lower()}.xlsx"
         import_path = os.path.join(WORKSPACE_ROOT, import_filename)
         self.generate_import_workbook(product, cdn_map, import_path)
 
         # 3. Perform automated bulk import in Pathao Commerce
         success = self.import_workbook_to_store(import_path)
-        base_sku = product["variants"][0]["sku"].rsplit("-", 2)[0] if product.get("variants") else "COVER"
         self.last_report = {
             "status": "success" if success else "error",
-            "product_id": 72153 if success else None,
+            "product_id": self.last_imported_product_id if success else None,
             "parent_sku": base_sku,
             "variants_count": len(product.get("variants", [])),
             "live_url": f"{PATHAO_BASE_URL}/products" if success else ""
@@ -713,7 +728,7 @@ def main():
         reports = []
         for prod in products:
             if prod.get("variants"):
-                base_sku = prod["variants"][0]["sku"].rsplit("-", 2)[0]
+                base_sku = extract_base_sku(prod["variants"][0]["sku"])
                 out_path = os.path.join(WORKSPACE_ROOT, f"pathao_import_{base_sku.lower()}.xlsx")
                 generate_import_workbook(prod, output_path=out_path)
                 rep = {

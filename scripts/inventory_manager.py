@@ -623,7 +623,7 @@ def append_downloaded_product(
             existing_codes.add(sku_code)
 
             color_name = variant_label
-            bracket_match = re.search(r'\[([^\]]+)\]', color_name)
+            bracket_match = re.search(r'[\[\u3010]([^\u3011\]]+)[\]\u3011]', color_name)
             if bracket_match:
                 color_name = bracket_match.group(1).title()
             else:

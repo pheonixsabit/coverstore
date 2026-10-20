@@ -120,6 +120,8 @@ class PipelineOrchestrator:
             raise ValueError("Agent 1 requires a MoveOn product URL.")
 
         # Enforce Rule 9: Mandatory China Domestic Delivery Charge
+        if self.china_delivery is not None and self.china_delivery < 0.0:
+            raise ValueError("China domestic delivery charge cannot be negative.")
         if self.china_delivery is None:
             if sys.stdin.isatty():
                 print("\n" + "="*70)
@@ -232,7 +234,7 @@ class PipelineOrchestrator:
             "url": self.url,
             "images_verified": True,
             "verified_count": verified_count,
-            "translated_count": len(results),
+            "translated_count": results.get("translated_count", 0) if isinstance(results, dict) else 0,
             "model": model_name,
             "material": material
         }
@@ -251,6 +253,7 @@ class PipelineOrchestrator:
             PathaoCommerceClient,
             load_and_group_inventory,
             generate_import_workbook,
+            extract_base_sku,
             PATHAO_BASE_URL
         )
 
@@ -269,7 +272,7 @@ class PipelineOrchestrator:
             raise RuntimeError(f"No matching inventory products found for URL: {self.url}")
 
         prod = matched[0]
-        base_sku = prod["variants"][0]["sku"].rsplit("-", 2)[0] if prod.get("variants") else "COVER"
+        base_sku = extract_base_sku(prod["variants"][0]["sku"]) if prod.get("variants") else "COVER"
 
         if self.dry_run:
             print("    [*] Executing Pathao Commerce dry-run sync...")
@@ -297,7 +300,7 @@ class PipelineOrchestrator:
             if not report:
                 report = {
                     "status": "success",
-                    "product_id": 72153,
+                    "product_id": getattr(client, "last_imported_product_id", None),
                     "parent_sku": base_sku,
                     "variants_count": len(prod.get("variants", [])),
                     "live_url": f"{PATHAO_BASE_URL}/products"
