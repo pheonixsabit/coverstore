@@ -209,10 +209,10 @@ class PipelineOrchestrator:
 
         from image_translator import ImageTranslator
         print(f"    [*] Translating images in: {target_dir}")
-        translator = ImageTranslator(dry_run=self.dry_run)
-        results = []
+        translator = ImageTranslator()
+        results = {}
         if os.path.exists(target_dir):
-            results = translator.translate_directory(target_dir, model_name=model_name, material=material)
+            results = translator.translate_directory(target_dir, model_name=model_name, material=material, dry_run=self.dry_run)
 
         # Agent 2 output validation (Contract & P20)
         gal_dir = os.path.join(target_dir, "gallery") if target_dir else ""
