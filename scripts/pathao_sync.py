@@ -14,6 +14,7 @@ import argparse
 from typing import List, Dict, Any, Optional
 from collections import defaultdict
 import openpyxl
+from openpyxl.cell.cell import ILLEGAL_CHARACTERS_RE
 import re
 
 # Ensure UTF-8 output on Windows consoles
@@ -176,10 +177,7 @@ def load_and_group_inventory(csv_path: str = INVENTORY_CSV_PATH, is_preorder: bo
             color = item.get("Color", "").strip()
             model = item.get("Phone Model", "").strip()
             price_raw = item.get("sell price", 0)
-            try:
-                price = int(float(str(price_raw).replace(",", "").strip()))
-            except Exception:
-                price = 349
+            price = clean_price(price_raw, default=349)
 
             # Resolve local SKU image
             img_path = ""
@@ -216,6 +214,37 @@ def load_and_group_inventory(csv_path: str = INVENTORY_CSV_PATH, is_preorder: bo
 
     return products
 
+def clean_price(val: Any, default: int = 349) -> int:
+    """Extracts integer price from strings possibly containing currency symbols (৳, $, BDT, Tk)."""
+    if val is None or val == "":
+        return default
+    if isinstance(val, (int, float)):
+        return int(val)
+    s = re.sub(r"[^\d.]", "", str(val).replace(",", "").strip())
+    try:
+        return int(float(s)) if s else default
+    except Exception:
+        return default
+
+def sanitize_cell_value(val: Any) -> Any:
+    """Strips XML 1.0 illegal control characters (\x00-\x08, \x0b-\x0c, \x0e-\x1f, \x7f) before writing to openpyxl."""
+    if isinstance(val, str):
+        return ILLEGAL_CHARACTERS_RE.sub("", val)
+    return val
+
+def extract_base_sku(sku: str) -> str:
+    """
+    Extracts parent base SKU (model-material, e.g. 'RN8-SIL') from any variant SKU.
+    Accurately handles standard 4-segment SKUs (RN8-SIL-WT-S) as well as
+    collision-disambiguated SKUs (-V2, -V3, -ALT, etc.).
+    """
+    if not sku:
+        return "COVER"
+    parts = sku.strip().split("-")
+    if len(parts) >= 2:
+        return f"{parts[0]}-{parts[1]}"
+    return parts[0]
+
 IMPORT_COLUMNS = [
     "PRODUCT_ID", "PRODUCT_NAME", "CATEGORY", "BASE_SKU",
     "VARIANT_SKU", "VARIANT_OPTIONS", "BASE_PRICE", "DISCOUNTED_PRICE",
@@ -236,7 +265,7 @@ def generate_import_workbook(
         cdn_map = {}
 
     variants = product.get("variants", [])
-    base_sku = variants[0]["sku"].rsplit("-", 2)[0] if variants else "COVER"
+    base_sku = extract_base_sku(variants[0]["sku"]) if variants else "COVER"
 
     if not output_path:
         output_path = os.path.join(WORKSPACE_ROOT, f"pathao_import_{base_sku.lower()}.xlsx")
@@ -259,7 +288,7 @@ def generate_import_workbook(
             gallery_urls.append(f"https://cdn.pathao.com/{fn}")
     parent_images = ",".join(gallery_urls)
 
-    ws.append([
+    parent_row = [
         "",                                         # PRODUCT_ID
         product.get("title", ""),                   # PRODUCT_NAME
         PATHAO_CATEGORY_DEFAULT,                    # CATEGORY
@@ -276,7 +305,8 @@ def generate_import_workbook(
         "NO",                                       # DISABLE
         parent_images,                              # IMAGES
         product.get("description", "")              # DESCRIPTION
-    ])
+    ]
+    ws.append([sanitize_cell_value(c) for c in parent_row])
 
     # Variant Rows
     for v in variants:
@@ -287,11 +317,11 @@ def generate_import_workbook(
             v_img = f"https://cdn.pathao.com/{v_fn}"
 
         color_opt = v.get("color", "")
-        v_match = re.search(r"-(V\d+)$", sku)
+        v_match = re.search(r"-(V\d+|[A-Za-z0-9]+)$", sku) if len(sku.split("-")) > 4 else re.search(r"-(V\d+)$", sku)
         if v_match and f"({v_match.group(1)})" not in color_opt:
             color_opt = f"{color_opt} ({v_match.group(1)})"
 
-        ws.append([
+        variant_row = [
             "",                                     # PRODUCT_ID
             "",                                     # PRODUCT_NAME
             "",                                     # CATEGORY
@@ -308,7 +338,8 @@ def generate_import_workbook(
             "NO",                                   # DISABLE
             v_img,                                  # IMAGES
             ""                                      # DESCRIPTION
-        ])
+        ]
+        ws.append([sanitize_cell_value(c) for c in variant_row])
 
     wb.save(output_path)
     print(f"[✓] Generated Pathao import workbook: {output_path} ({len(variants) + 1} total rows)")
