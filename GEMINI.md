@@ -42,7 +42,7 @@
   10. `Local Image Path`: Relative local filepath to the variant image (e.g., `Realme Neo8/Liquid Silicone/sku/RN8-SIL-WT-S.jpg`).
   11. `product price`: Base unit procurement price in BDT (collected directly from MoveOn dropship/offer price, which is natively in BDT; do NOT multiply by 1.1703).
   12. `china delivery`: China domestic logistics share per unit (manual input by user, default 10.0 BDT).
-  13. `air shipping`: International air freight share per unit (`weight x 2 x 780/kg`, default 50.0 BDT).
+  13. `air shipping`: International air freight share per unit (`weight x 2 x 780/kg`, default floor 50.0 BDT; dummy/fake weights < 0.02kg fallback to 50.0–80.0 BDT baseline).
   14. `bd delivery`: Bangladesh local delivery share per unit (fixed 5.0 BDT).
   15. `packaging`: Packaging material cost (fixed 11.5 Taka).
   16. `printing`: Labeling/printing cost (fixed 20.0 Taka).

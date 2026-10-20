@@ -577,10 +577,12 @@ def append_downloaded_product(
                         pass
                     break
 
-            if sku_weight > 0:
-                sku_air_ship = round(sku_weight * 2.0 * 780.0, 2)
+            # Guard against dummy/fake supplier weights (e.g. 0.001 kg / 1g)
+            # Real cases weigh 30-50g; minimum realistic air shipping is 50-80 BDT (default floor 50.0 BDT)
+            if sku_weight >= 0.02:
+                sku_air_ship = max(50.0, round(sku_weight * 2.0 * 780.0, 2))
             elif air_ship is not None and air_ship > 0:
-                sku_air_ship = air_ship
+                sku_air_ship = max(50.0, air_ship)
             else:
                 sku_air_ship = 50.0
 
