@@ -1,6 +1,8 @@
 __pycache__/
 *.pyc
 .env
+.pathao_session.json
+*.session.json
 .DS_Store
 Thumbs.db
 ~$*

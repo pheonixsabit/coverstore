@@ -139,6 +139,7 @@ def main():
     parser.add_argument("--model", "-m", type=str, default=None, help="Phone model name(s), comma-separated, or 'all'")
     parser.add_argument("--material", type=str, default=None, help="Material override name")
     parser.add_argument("--token", "-t", type=str, default=None, help="MoveOn business account auth token")
+    parser.add_argument("--sync-pathao", action="store_true", help="Automatically sync newly downloaded product to Pathao Commerce")
     parser.add_argument("--no-push", action="store_true", help="Skip automatic git commit and push to remote repository")
     args = parser.parse_args()
 
@@ -284,6 +285,24 @@ def main():
         append_downloaded_product(product_info, selected_models, material, url, china_del=china_delivery)
     except Exception as e:
         print(f"[!] Warning: Failed to update inventory records: {e}")
+
+    # 4b. Optionally sync to Pathao Commerce
+    if getattr(args, "sync_pathao", False):
+        try:
+            print("\n[*] Triggering Pathao Commerce catalog sync for this product...")
+            from pathao_sync import PathaoCommerceClient, load_and_group_inventory
+            all_prods = load_and_group_inventory()
+            matching = [p for p in all_prods if url in p.get("source_link", "")]
+            if matching:
+                client = PathaoCommerceClient(headless=True)
+                client.start()
+                if client.ensure_authenticated():
+                    client.sync_product(matching[0])
+                client.close()
+            else:
+                print("[!] No matching product found in inventory for Pathao sync.")
+        except Exception as e:
+            print(f"[!] Warning: Pathao Commerce sync error: {e}")
 
     # 5. Automatically stage, commit, and push to GitHub
     if not args.no_push:
