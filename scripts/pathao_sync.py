@@ -181,7 +181,7 @@ def load_and_group_inventory(csv_path: str = INVENTORY_CSV_PATH) -> List[Dict[st
                 "phone_model": model,
                 "color": color,
                 "price": price,
-                "stock": int(os.environ.get("PATHAO_DEFAULT_STOCK", 10)),
+                "stock": int(os.environ.get("PATHAO_DEFAULT_STOCK", 1)),
                 "image_path": img_path
             })
 
