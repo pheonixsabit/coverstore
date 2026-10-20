@@ -49,13 +49,22 @@ def load_env_file(filepath: str = os.path.join(WORKSPACE_ROOT, ".env")):
 
 load_env_file()
 
-def get_product_description_for_material(material: str, phone_models: List[str]) -> str:
+def get_product_description_for_material(material: str, phone_models: List[str], is_preorder: bool = True) -> str:
     """
     Generates a high-converting, formatted product description tailored to the
     material and phone models based on product description.md guidelines.
     """
     models_str = " / ".join(phone_models[:3])
     mat_lower = material.lower()
+
+    preorder_notice = (
+        "⚡ PRE-ORDER ITEM (প্রি-অর্ডার পণ্য):\n"
+        "• Import Notice: Sourced directly from authentic overseas manufacturer upon order confirmation.\n"
+        "• Estimated Delivery Timeline: 7 to 12 working days across Bangladesh.\n"
+        "• Payment: Nationwide Cash on Delivery (COD) supported.\n"
+        "• Inspection: 100% Parcel Inspection Enabled — verify your cover before paying!\n"
+        "─────────────────────────────────────────────\n\n"
+    ) if is_preorder else ""
 
     if "silicone" in mat_lower:
         features = (
@@ -97,6 +106,7 @@ def get_product_description_for_material(material: str, phone_models: List[str])
         )
 
     desc = (
+        f"{preorder_notice}"
         f"Premium Protective Armor Case for {models_str}\n\n"
         f"{features}\n"
         "📦 Package Includes:\n"
@@ -109,7 +119,7 @@ def get_product_description_for_material(material: str, phone_models: List[str])
     )
     return desc
 
-def load_and_group_inventory(csv_path: str = INVENTORY_CSV_PATH) -> List[Dict[str, Any]]:
+def load_and_group_inventory(csv_path: str = INVENTORY_CSV_PATH, is_preorder: bool = True) -> List[Dict[str, Any]]:
     """
     Reads inventory.csv and groups records by MoveOn product link.
     1 MoveOn link = 1 parent product with multiple variants.
@@ -140,6 +150,9 @@ def load_and_group_inventory(csv_path: str = INVENTORY_CSV_PATH) -> List[Dict[st
             title = first.get("Product Name", "").strip()
         if not title:
             title = f"Luxury {primary_material} Protective Case for {' / '.join(phone_models)}"
+
+        if is_preorder and not title.startswith("[PRE-ORDER]"):
+            title = f"[PRE-ORDER] {title}"
 
         # Find gallery images
         gallery_images = []
@@ -188,7 +201,7 @@ def load_and_group_inventory(csv_path: str = INVENTORY_CSV_PATH) -> List[Dict[st
                 "image_path": img_path
             })
 
-        description = get_product_description_for_material(primary_material, phone_models)
+        description = get_product_description_for_material(primary_material, phone_models, is_preorder=is_preorder)
 
         products.append({
             "source_link": link,
