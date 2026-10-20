@@ -268,7 +268,7 @@ class PathaoCommerceClient:
         curr_url = self.page.url
         if "sign-in" in curr_url or "login" in curr_url:
             print("[*] Authentication required. Navigating to sign-in page...")
-            email = os.environ.get("PATHAO_EMAIL_OR_PHONE")
+            email = os.environ.get("PATHAO_PHONE") or os.environ.get("PATHAO_EMAIL_OR_PHONE") or os.environ.get("PATHAO_EMAIL")
             password = os.environ.get("PATHAO_PASSWORD")
 
             if not email or not password:
