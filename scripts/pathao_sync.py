@@ -242,6 +242,8 @@ def extract_base_sku(sku: str) -> str:
         return "COVER"
     parts = sku.strip().split("-")
     if len(parts) >= 2:
+        if parts[-1].startswith("V") and parts[-1][1:].isdigit():
+            return f"{parts[0]}-{parts[1]}-{parts[-1]}"
         return f"{parts[0]}-{parts[1]}"
     return parts[0]
 
