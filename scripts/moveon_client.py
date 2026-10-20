@@ -1,10 +1,16 @@
 import os
+import sys
 import re
 import urllib.request
 import urllib.error
 import json
 import uuid
+import time
 from typing import Dict, List, Any, Optional
+
+WORKSPACE_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+MOVEON_LOGIN_URL = "https://moveon.global/auth/login"
+MOVEON_SESSION_PATH = os.path.join(WORKSPACE_ROOT, ".moveon_session.json")
 
 def extract_product_id_from_url(url_or_id: str) -> str:
     """
@@ -56,7 +62,6 @@ def sanitize_filename(name: str) -> str:
     name = re.sub(r'\s+', ' ', name)
     return name.strip()
 
-
 def load_env(env_path: Optional[str] = None) -> Dict[str, str]:
     """Lightweight .env reader without external dependencies."""
     if env_path is None:
@@ -79,6 +84,127 @@ def load_env(env_path: Optional[str] = None) -> Dict[str, str]:
             pass
     return env_vars
 
+def login_moveon(email: Optional[str] = None, password: Optional[str] = None, headless: bool = True) -> Optional[str]:
+    """
+    Logs in to MoveOn (https://moveon.global/auth/login) using email and password via Playwright.
+    Extracts the Bearer auth token and persists session cookies to .moveon_session.json.
+    """
+    load_env()
+    email = email or os.environ.get("MOVEON_EMAIL") or os.environ.get("MOVEON_EMAIL_OR_PHONE")
+    password = password or os.environ.get("MOVEON_PASSWORD")
+
+    if not email or not password:
+        print("[!] MoveOn login credentials not found in .env (MOVEON_EMAIL, MOVEON_PASSWORD).")
+        return None
+
+    try:
+        from playwright.sync_api import sync_playwright
+    except ImportError:
+        print("[!] Playwright is not installed. Automated MoveOn login requires playwright.")
+        return None
+
+    captured_tokens = []
+
+    print(f"[*] Launching browser for MoveOn authentication ({email})...")
+    with sync_playwright() as p:
+        browser = p.chromium.launch(
+            headless=headless,
+            args=["--disable-blink-features=AutomationControlled"]
+        )
+        context = browser.new_context(
+            viewport={"width": 1280, "height": 720},
+            user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
+        )
+        page = context.new_page()
+
+        # Monitor network responses for token
+        def on_response(response):
+            try:
+                auth_h = response.headers.get("authorization")
+                if auth_h and auth_h.startswith("Bearer "):
+                    captured_tokens.append(auth_h.replace("Bearer ", "").strip())
+                ct = response.headers.get("content-type", "")
+                if "json" in ct:
+                    data = response.json()
+                    if isinstance(data, dict):
+                        for k in ["token", "auth_token", "access_token", "session_token"]:
+                            if k in data and isinstance(data[k], str) and len(data[k]) > 20:
+                                captured_tokens.append(data[k])
+                        if "session" in data and isinstance(data["session"], dict):
+                            for k in ["token", "auth_token", "access_token"]:
+                                if k in data["session"] and isinstance(data["session"][k], str) and len(data["session"][k]) > 20:
+                                    captured_tokens.append(data["session"][k])
+            except Exception:
+                pass
+
+        page.on("response", on_response)
+
+        try:
+            page.goto(MOVEON_LOGIN_URL, timeout=40000)
+            page.wait_for_load_state("networkidle")
+
+            # Fill identifier & password
+            page.wait_for_selector("input#identifier, input[placeholder*='email']", timeout=15000)
+            page.fill("input#identifier, input[placeholder*='email']", email)
+            page.fill("input#password, input[type='password']", password)
+
+            print("[*] Submitting MoveOn login credentials...")
+            page.click("button[type='submit']")
+            page.wait_for_load_state("networkidle")
+            time.sleep(3)
+
+            # Check for OTP or additional security step
+            if "otp" in page.content().lower() or "verification" in page.content().lower():
+                print("\n" + "="*65)
+                print(" [!] MoveOn OTP verification prompt detected.")
+                otp_code = input(" >> Enter MoveOn verification code: ").strip()
+                print("="*65)
+                otp_inp = page.query_selector("input[type='number'], input[placeholder*='code'], input[maxlength='6']")
+                if otp_inp:
+                    otp_inp.fill(otp_code)
+                    page.press("input[type='number'], input[placeholder*='code'], input[maxlength='6']", "Enter")
+                    time.sleep(3)
+                    page.wait_for_load_state("networkidle")
+
+            # Check localStorage for token
+            token = None
+            try:
+                ls_data = page.evaluate("() => { let s = {}; for (let i = 0; i < localStorage.length; i++) { let k = localStorage.key(i); s[k] = localStorage.getItem(k); } return s; }")
+                for k in ["token", "auth_token", "mvn-auth-token", "mvn_token", "access_token"]:
+                    if k in ls_data and ls_data[k]:
+                        token = ls_data[k]
+                        break
+                if not token and captured_tokens:
+                    token = captured_tokens[-1]
+                if not token:
+                    for k, v in ls_data.items():
+                        if any(t in k.lower() for t in ["token", "auth", "session"]) and isinstance(v, str) and len(v) > 20:
+                            token = v
+                            break
+            except Exception as e:
+                print(f"[!] Warning reading localStorage: {e}")
+
+            # Save session state
+            context.storage_state(path=MOVEON_SESSION_PATH)
+
+            if token:
+                try:
+                    with open(MOVEON_SESSION_PATH, "r+", encoding="utf-8") as f:
+                        s_data = json.load(f)
+                        s_data["moveon_token"] = token
+                        f.seek(0)
+                        json.dump(s_data, f, indent=2)
+                        f.truncate()
+                except Exception:
+                    pass
+                print(f"[✓] Successfully authenticated with MoveOn! Token cached in {os.path.basename(MOVEON_SESSION_PATH)}")
+            else:
+                print(f"[✓] MoveOn authentication complete. Session cookies saved to {os.path.basename(MOVEON_SESSION_PATH)}")
+
+            return token
+        finally:
+            browser.close()
+
 class MoveOnClient:
     BASE_API = "https://product-api.proxy.service.moveon.global/api/product/customer/v1/products/find"
 
@@ -87,8 +213,27 @@ class MoveOnClient:
         self.region = region
         self.locale = locale
         self.business_type = business_type
-        self.auth_token = (auth_token or os.environ.get("MOVEON_AUTH_TOKEN") or "").strip()
         self.guest_id = str(uuid.uuid4())
+
+        # 1. Direct parameter or MOVEON_AUTH_TOKEN in .env
+        self.auth_token = (auth_token or os.environ.get("MOVEON_AUTH_TOKEN") or "").strip()
+
+        # 2. Check cached session file (.moveon_session.json)
+        if not self.auth_token and os.path.exists(MOVEON_SESSION_PATH):
+            try:
+                with open(MOVEON_SESSION_PATH, "r", encoding="utf-8") as f:
+                    s_data = json.load(f)
+                    self.auth_token = (s_data.get("moveon_token") or "").strip()
+            except Exception:
+                pass
+
+        # 3. If still no token but MOVEON_EMAIL & MOVEON_PASSWORD are present, auto-login
+        if not self.auth_token and (os.environ.get("MOVEON_EMAIL") or os.environ.get("MOVEON_EMAIL_OR_PHONE")) and os.environ.get("MOVEON_PASSWORD"):
+            print("    [*] No MOVEON_AUTH_TOKEN found. Logging into MoveOn with email and password...")
+            try:
+                self.auth_token = login_moveon(headless=True) or ""
+            except Exception as e:
+                print(f"    [!] Warning: Automated MoveOn login error: {e}")
 
     def fetch_product(self, url_or_id: str) -> Dict[str, Any]:
         """
@@ -113,7 +258,7 @@ class MoveOnClient:
             headers['Authorization'] = f"Bearer {self.auth_token}"
             print("    [✓] Crawling as MoveOn Business Account (auth token applied).")
         else:
-            print("    [i] Crawling in Guest Wholesale mode (no MOVEON_AUTH_TOKEN detected in .env).")
+            print("    [i] Crawling in Guest Wholesale mode (no MOVEON_AUTH_TOKEN or login detected in .env).")
 
         req = urllib.request.Request(api_url, headers=headers)
         try:
@@ -141,53 +286,47 @@ class MoveOnClient:
             gallery_items = gallery_raw
 
         gallery_urls = []
-        for g in gallery_items:
-            if isinstance(g, dict) and g.get('url'):
-                gallery_urls.append(g.get('url'))
-            elif isinstance(g, str):
-                gallery_urls.append(g)
-        
-        # If gallery is empty but main image exists, add main image
-        if not gallery_urls and main_image:
-            gallery_urls.append(main_image)
+        for item in gallery_items:
+            img = item.get('image') if isinstance(item, dict) else item
+            if img and img not in gallery_urls:
+                gallery_urls.append(img)
+        if main_image and main_image not in gallery_urls:
+            gallery_urls.insert(0, main_image)
 
-        # Parse properties and models
+        # Parse Properties & Model Options
         props_data = data.get('variation', {}).get('properties', {}).get('data', [])
-        models_list: List[Dict[str, str]] = []
-        prop_values_map = {}  # value_id -> {'name': name, 'image': img, 'prop_id': prop_id}
-
+        prop_values_map = {}
         model_property_id = None
+        models_list = []
+
         for prop in props_data:
-            prop_name = prop.get('name', '').strip()
             prop_id = str(prop.get('id', ''))
-            is_model_prop = any(k in prop_name.lower() for k in ['model', 'applicable', 'device'])
-            if is_model_prop:
+            prop_name = prop.get('name', '').lower()
+            values = prop.get('values', {}).get('data', [])
+            
+            is_model_prop = any(k in prop_name for k in ['model', 'applicable', 'phone', 'compatible'])
+            if not is_model_prop and len(props_data) == 1:
+                is_model_prop = True
+            
+            if is_model_prop and not model_property_id:
                 model_property_id = prop_id
 
-            for val in prop.get('values', {}).get('data', []):
+            for val in values:
                 val_id = str(val.get('id', ''))
-                val_name = val.get('name', '').strip()
-                val_img = val.get('image')
+                val_name = val.get('name', '')
                 prop_values_map[val_id] = {
                     'name': val_name,
-                    'image': val_img,
                     'prop_id': prop_id,
-                    'prop_name': prop_name
+                    'image': val.get('image')
                 }
-                if is_model_prop:
+                if is_model_prop and prop_id == model_property_id:
+                    clean_name = clean_model_name(val_name)
                     models_list.append({
                         'id': val_id,
                         'raw_name': val_name,
-                        'clean_name': clean_model_name(val_name)
+                        'clean_name': clean_name,
+                        'image': val.get('image')
                     })
-
-        # If no explicit model property found, check title for model name
-        if not models_list:
-            models_list.append({
-                'id': 'default',
-                'raw_name': title,
-                'clean_name': clean_model_name(title)
-            })
 
         # Parse SKUs mapped by model
         skus_data = data.get('variation', {}).get('skus', {}).get('data', [])
@@ -213,7 +352,6 @@ class MoveOnClient:
                         variant_names.append(val_meta['name'])
 
             if not associated_model_clean:
-                # Associate with default model if single model
                 associated_model_clean = models_list[0]['clean_name'] if models_list else "Standard Model"
 
             sku_item = {
@@ -237,3 +375,27 @@ class MoveOnClient:
             'skus_by_model': skus_by_model,
             'raw_data': data
         }
+
+if __name__ == "__main__":
+    import argparse
+    parser = argparse.ArgumentParser(description="MoveOn API Client & Authentication Manager")
+    parser.add_argument("--login", action="store_true", help="Log in to MoveOn using credentials in .env and save session")
+    parser.add_argument("--headful", action="store_true", help="Run browser visibly for manual interaction or OTP entry")
+    parser.add_argument("--url", type=str, help="Fetch and print details for a MoveOn product URL")
+    args = parser.parse_args()
+
+    if args.login:
+        token = login_moveon(headless=not args.headful)
+        if token:
+            print(f"[✓] MoveOn authentication successful! Token cached in {os.path.basename(MOVEON_SESSION_PATH)}")
+        else:
+            print("[!] MoveOn authentication could not retrieve a Bearer token.")
+    elif args.url:
+        client = MoveOnClient()
+        prod = client.fetch_product(args.url)
+        print(f"\n[✓] Title: {prod['title']}")
+        print(f"    Total Models: {len(prod['models'])}")
+        print(f"    Total Gallery: {len(prod['gallery_images'])}")
+        print(f"    Total SKUs: {sum(len(v) for v in prod['skus_by_model'].values())}")
+    else:
+        parser.print_help()
