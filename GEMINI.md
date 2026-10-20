@@ -76,3 +76,16 @@
   - Apply the confirmed unique SKU to the variant image filename in `sku/` (`[SKU]-V2.jpg`).
   - Save the unique SKU in `inventory.csv` and `inventory.xlsx`.
   - Update `COLOR_MAP` or abbreviation rules in `scripts/sku_generator.py` to persist the resolution standard and prevent recurrent collisions.
+
+
+## 8. MoveOn Business Account Crawling Standard
+- **Scope**: All MoveOn product downloads and pricing synchronization.
+- **Authentication**: Supports authenticated MoveOn Business Account requests using a Bearer token stored in `.env` as `MOVEON_AUTH_TOKEN` (or via `--token`).
+- **Wholesale Tier Pricing**:
+  - Automatically queries MoveOn's wholesale endpoints with `business_type=wholesale`.
+  - Attaches `Authorization: Bearer <token>` when available.
+  - Automatically extracts business pricing and volume tier discounts (`wholesales` and `dropship.offer_price`).
+  - Gracefully falls back to guest wholesale mode if no token is configured in `.env`.
+- **Security & Multi-PC Safety**:
+  - `.env` is permanently excluded via `.gitignore` to prevent leaking private business account tokens.
+  - An `.env.example` template is provided for quick setup across both workstations.
