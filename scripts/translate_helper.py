@@ -587,12 +587,79 @@ def translate_frosted_pc_sku(img_path: str, color_name: str, model_name: str = "
     im.convert("RGB").save(out_path, quality=95)
     return out_path
 
+def translate_graphene_banner_800(img_path: str, color_name: str = "", model_name: str = "Realme Neo8", out_path: Optional[str] = None):
+    """Translates 800x800 Graphene Cooling Silicone showcase & SKU images in-place."""
+    if out_path is None:
+        out_path = img_path
+    im = Image.open(img_path).convert("RGBA")
+    draw = ImageDraw.Draw(im)
+
+    bg_fill = (150, 168, 190, 255)
+    draw.rounded_rectangle([35, 20, 765, 175], radius=16, fill=bg_fill, outline=(180, 195, 215, 255), width=2)
+
+    font_title = get_font("C:/Windows/Fonts/arialbd.ttf", 30)
+    draw.text((55, 38), "GRAPHENE COOLING · AIRBAG ARMOR", fill=(255, 255, 255, 255), font=font_title)
+
+    font_badge = get_font("C:/Windows/Fonts/arialbd.ttf", 15)
+    model_str = f"FOR {model_name.upper()}"
+    draw.rounded_rectangle([55, 105, 275, 148], radius=12, fill=(255, 255, 255, 255))
+    draw.text((75, 117), model_str, fill=(35, 45, 60, 255), font=font_badge)
+
+    if color_name:
+        clean_col = color_name.upper().strip()
+        bbox = draw.textbbox((0, 0), clean_col, font=font_badge)
+        tw = bbox[2] - bbox[0]
+        cw = max(tw + 36, 140)
+        draw.rounded_rectangle([290, 105, 290 + cw, 148], radius=12, fill=(30, 40, 55, 255))
+        draw.text((290 + (cw - tw) / 2, 117), clean_col, fill=(255, 255, 255, 255), font=font_badge)
+    else:
+        draw.rounded_rectangle([290, 105, 520, 148], radius=12, fill=(30, 40, 55, 255))
+        draw.text((310, 117), "MAGNETIC HEAT RELEASE", fill=(255, 255, 255, 255), font=font_badge)
+
+    im.convert("RGB").save(out_path, quality=95)
+    return out_path
+
+def translate_graphene_gallery_04(img_path: str, out_path: Optional[str] = None):
+    """Translates 1440x1440 Graphene Heat Conduction technical graphic in-place."""
+    if out_path is None:
+        out_path = img_path
+    im = Image.open(img_path).convert("RGBA")
+    draw = ImageDraw.Draw(im)
+
+    draw.rounded_rectangle([80, 80, 1360, 270], radius=20, fill=(10, 15, 22, 240), outline=(40, 55, 75, 255), width=2)
+    font_h1 = get_font("C:/Windows/Fonts/arialbd.ttf", 52)
+    draw.text((120, 110), "GRAPHENE HEAT CONDUCTION MATRIX", fill=(255, 255, 255, 255), font=font_h1)
+
+    font_sub = get_font("C:/Windows/Fonts/segoeui.ttf", 26)
+    draw.text((120, 185), "Snowflake magnetic thermal sheet accelerates CPU cooling during gaming.", fill=(160, 185, 215, 255), font=font_sub)
+
+    im.convert("RGB").save(out_path, quality=95)
+    return out_path
+
+def translate_graphene_gallery_05(img_path: str, out_path: Optional[str] = None):
+    """Translates 1440x1440 Airbag Drop Protection graphic in-place."""
+    if out_path is None:
+        out_path = img_path
+    im = Image.open(img_path).convert("RGBA")
+    draw = ImageDraw.Draw(im)
+
+    draw.rounded_rectangle([80, 70, 1360, 260], radius=20, fill=(235, 242, 248, 240), outline=(200, 215, 230, 255), width=2)
+    font_h1 = get_font("C:/Windows/Fonts/arialbd.ttf", 52)
+    draw.text((120, 100), "AIRBAG CORNER DROP PROTECTION", fill=(20, 30, 45, 255), font=font_h1)
+
+    font_sub = get_font("C:/Windows/Fonts/segoeui.ttf", 26)
+    draw.text((120, 175), "Reinforced shock-absorbing silicone bumpers shield against hard drops.", fill=(80, 95, 115, 255), font=font_sub)
+
+    im.convert("RGB").save(out_path, quality=95)
+    return out_path
+
 def translate_in_place(gallery_dir: str, sku_dir: str, material: str = "Liquid Silicone", model_name: str = "Realme Neo8"):
     """
     Translates all images containing non-English text directly in-place,
     replacing the original file in \\gallery\\ and \\sku\\.
     """
     is_tpu = "tpu" in material.lower()
+    is_graphene = ("neo8" in model_name.lower() or "neo8" in gallery_dir.lower()) and "silicone" in material.lower() and "liquid" not in material.lower()
     is_frosted_pc = ("neo8" in model_name.lower() or "neo7" in model_name.lower()) and ("pc" in material.lower() or "pet" in material.lower() or "hard" in material.lower())
     is_pc = ("pc" in material.lower() or "hard" in material.lower() or "pet" in material.lower()) and not is_frosted_pc
     is_stand = is_tpu and ("x80" in model_name.lower() or "x70" in model_name.lower() or "x60" in model_name.lower() or "stand" in gallery_dir.lower())
@@ -604,7 +671,23 @@ def translate_in_place(gallery_dir: str, sku_dir: str, material: str = "Liquid S
             if not f.lower().endswith(('.jpg', '.jpeg', '.png', '.webp')):
                 continue
             path = os.path.join(gallery_dir, f)
-            if is_frosted_pc:
+            if is_graphene:
+                if "01" in f:
+                    translate_graphene_banner_800(path, "TERRACOTTA ORANGE", model_name, path)
+                    print(f"    [✓] In-place translated Graphene Silicone showcase: {f}")
+                elif "02" in f:
+                    translate_graphene_banner_800(path, "MATTE GRAY", model_name, path)
+                    print(f"    [✓] In-place translated Graphene Silicone showcase: {f}")
+                elif "03" in f:
+                    translate_graphene_banner_800(path, "OBSIDIAN BLACK", model_name, path)
+                    print(f"    [✓] In-place translated Graphene Silicone showcase: {f}")
+                elif "04" in f:
+                    translate_graphene_gallery_04(path, path)
+                    print(f"    [✓] In-place translated Graphene Heat Conduction: {f}")
+                elif "05" in f:
+                    translate_graphene_gallery_05(path, path)
+                    print(f"    [✓] In-place translated Graphene Airbag Protection: {f}")
+            elif is_frosted_pc:
                 if "01" in f:
                     translate_frosted_pc_gallery_01(path, path)
                     print(f"    [✓] In-place translated Frosted PC showcase: {f}")
@@ -677,7 +760,15 @@ def translate_in_place(gallery_dir: str, sku_dir: str, material: str = "Liquid S
             if not f.lower().endswith(('.jpg', '.jpeg', '.png', '.webp')):
                 continue
             path = os.path.join(sku_dir, f)
-            if is_frosted_pc:
+            if is_graphene:
+                col_name = "OBSIDIAN BLACK"
+                if "-GY-" in f:
+                    col_name = "MATTE GRAY"
+                elif "-OR-" in f:
+                    col_name = "TERRACOTTA ORANGE"
+                translate_graphene_banner_800(path, col_name, model_name, path)
+                print(f"    [✓] In-place translated Graphene Silicone SKU ({col_name}): {f}")
+            elif is_frosted_pc:
                 col_name = "CLASSIC BLACK"
                 if "-RK-" in f:
                     col_name = "PEAK ROCK"

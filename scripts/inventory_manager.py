@@ -140,6 +140,10 @@ def generate_seo_title(product_name: str, phone_model: str, material: str) -> st
     if "neo8" in pm.lower() and ("pc" in mat or "heat" in pn or "dissipation" in pn):
         return "Magnetic Heat Dissipation Matte Back Cover for Realme GT Neo 8 / Neo 7 – Ultra Thin Breathable Cooling Case with Ring Magnet"
 
+    # Realme Neo8 Graphene Cooling Silicone
+    if "neo8" in pm.lower() and ("graphene" in pn or "cooling" in pn or "airbag" in pn or ("silicone" in mat and "liquid" not in mat)):
+        return "Magnetic Graphene Cooling Silicone Case for Realme GT Neo 8 – Snowflake Heat Dissipation Airbag Anti-Drop Back Cover"
+
     # Realme Neo8 Liquid Silicone
     if "neo8" in pm.lower() and "silicone" in mat:
         return "Luxury Liquid Silicone Shockproof Case for Realme GT Neo 8 – Skin-Friendly Soft Cube Anti-Drop Protective Back Cover"
