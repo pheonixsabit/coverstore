@@ -91,3 +91,14 @@
 - **Security & Multi-PC Safety**:
   - `.env` is permanently excluded via `.gitignore` to prevent leaking private business account tokens.
   - An `.env.example` template is provided for quick setup across both workstations.
+
+
+## 9. Mandatory China Domestic Delivery Charge /grill-me Standard
+- **Scope**: Every single product processed from a MoveOn link.
+- **Timing**: Triggered immediately after asset download and in-place translation finish, right before calculating financial landing costs and appending to `inventory.csv` & `inventory.xlsx`.
+- **Mandatory Prompt**:
+  - Never assume, hardcode, or silently default China domestic delivery charge.
+  - Automatically pause and grill the user via `ask_question` to input the exact China domestic delivery fee in BDT per unit for the current product shipment.
+- **Propagation**:
+  - Apply the user's exact specified fee to the `china delivery` column (Column 12 / L).
+  - Compute `landing cost`, `margin`, `sell price`, and `max discount` using this confirmed logistics cost.
