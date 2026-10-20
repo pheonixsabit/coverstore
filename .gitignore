@@ -8,3 +8,5 @@ __pycache__/
 .DS_Store
 Thumbs.db
 ~$*
+.agents/
+pathao_import_*.xlsx

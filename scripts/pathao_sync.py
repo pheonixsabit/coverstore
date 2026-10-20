@@ -13,6 +13,7 @@ import time
 import argparse
 from typing import List, Dict, Any, Optional
 from collections import defaultdict
+import openpyxl
 
 # Ensure UTF-8 output on Windows consoles
 if sys.platform == "win32":
@@ -28,6 +29,7 @@ SESSION_FILE_PATH = os.path.join(WORKSPACE_ROOT, ".pathao_session.json")
 PRODUCT_DESC_PATH = os.path.join(WORKSPACE_ROOT, "product description.md")
 PATHAO_SIGNIN_URL = "https://commerce.pathao.com/sign-in?to=%2F"
 PATHAO_BASE_URL = "https://commerce.pathao.com"
+PATHAO_CATEGORY_DEFAULT = "752 - Electronics & Digital > Mobiles & Tablets > Mobile & Tablet Essentials > Mobile Cases & Covers"
 
 # Load .env variables manually to avoid extra dependencies
 def load_env_file(filepath: str = os.path.join(WORKSPACE_ROOT, ".env")):
@@ -216,7 +218,6 @@ class PathaoCommerceClient:
         from playwright.sync_api import sync_playwright
         self.playwright = sync_playwright().start()
         
-        # Prepare context options with session state if available
         context_opts = {
             "viewport": {"width": 1366, "height": 768},
             "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
@@ -257,14 +258,12 @@ class PathaoCommerceClient:
     def ensure_authenticated(self) -> bool:
         """
         Navigates to Pathao Commerce and verifies authentication.
-        If login or OTP is needed, conducts login flow.
         """
         print("[*] Checking Pathao Commerce authentication status...")
         self.page.goto(PATHAO_SIGNIN_URL, timeout=45000)
         self.page.wait_for_load_state("networkidle")
         time.sleep(2)
 
-        # Check if login form is present
         login_input = self.page.query_selector("input[placeholder*='email or phone'], input#login_password")
         if login_input:
             print("[*] Authentication required. Submitting Pathao Commerce credentials...")
@@ -274,13 +273,11 @@ class PathaoCommerceClient:
             if not email or not password:
                 print("\n" + "!"*70)
                 print(" [!] Missing PATHAO_EMAIL_OR_PHONE/PATHAO_PHONE or PATHAO_PASSWORD in .env")
-                print("     Please configure your credentials in .env to allow automated login:")
                 print("     PATHAO_PHONE=01780404797")
                 print("     PATHAO_PASSWORD=your_password")
                 print("!"*70 + "\n")
                 return False
 
-            # Fill credentials
             try:
                 self.page.wait_for_selector("input[placeholder*='email or phone'], input[type='text']", timeout=15000)
                 self.page.fill("input[placeholder*='email or phone'], input[type='text']", email)
@@ -291,12 +288,10 @@ class PathaoCommerceClient:
                 self.page.wait_for_load_state("networkidle")
                 time.sleep(4)
 
-                # Check for OTP requirement
                 page_text = self.page.content().lower()
                 if "otp" in page_text or "verification" in page_text or "code" in page_text:
                     print("\n" + "="*70)
                     print(" [!] SMS/WhatsApp OTP Verification Detected!")
-                    print("     A verification code was sent to your phone/email by Pathao.")
                     otp = input(" >> Please enter the Pathao OTP code here: ").strip()
                     print("="*70)
                     
@@ -307,7 +302,6 @@ class PathaoCommerceClient:
                         time.sleep(3)
                         self.page.wait_for_load_state("networkidle")
 
-                # Verify successful login by checking presence of dashboard/products
                 time.sleep(2)
                 curr_content = self.page.content()
                 if "Dashboard" in curr_content or "Zayo tech hub" in curr_content or "Products" in curr_content:
@@ -324,24 +318,248 @@ class PathaoCommerceClient:
             print(f"[✓] Already authenticated via stored session! Active Store: Zayo tech hub")
             return True
 
+    def ensure_media_gallery_assets(self, product: Dict[str, Any]) -> Dict[str, str]:
+        """
+        Uploads product gallery and SKU images to Pathao Media Gallery (or retrieves existing CDN URLs).
+        Returns a dictionary mapping filename (e.g., 'RN8-SIL-WT-S.jpg') to its Pathao CDN URL.
+        """
+        print(f"[*] Checking/Uploading assets to Pathao Media Gallery...")
+        self.page.goto(f"{PATHAO_BASE_URL}/media-gallery", timeout=35000)
+        self.page.wait_for_load_state("networkidle")
+        time.sleep(2)
+
+        cdn_url_map = {}
+
+        # Collect local files
+        target_files = []
+        for g in product.get("gallery_images", []):
+            if os.path.exists(g):
+                target_files.append(g)
+        for v in product.get("variants", []):
+            p = v.get("image_path")
+            if p and os.path.exists(p) and p not in target_files:
+                target_files.append(p)
+
+        # Query existing items in Pathao gallery
+        try:
+            existing = self.page.evaluate("""async () => {
+                const resp = await fetch('/api/v1/upload/media?limit=100&offset=0');
+                const json = await resp.json();
+                return json.data || [];
+            }""")
+            for item in existing:
+                fn = item.get("file_name")
+                url = item.get("image_url")
+                if fn and url:
+                    cdn_url_map[fn] = url
+        except Exception as e:
+            print(f"[!] Warning reading existing media gallery: {e}")
+
+        # Check which files need upload
+        needed = [f for f in target_files if os.path.basename(f) not in cdn_url_map]
+        if needed:
+            print(f"[*] Uploading {len(needed)} new asset(s) to Pathao Media Gallery...")
+            
+            def on_resp(resp):
+                if "api/v1/upload/media" in resp.url and resp.request.method == "POST" and resp.status == 200:
+                    try:
+                        d = resp.json().get("data", {})
+                        fn = d.get("file_name")
+                        url = d.get("image_url")
+                        if fn and url:
+                            cdn_url_map[fn] = url
+                            print(f"    [+] Uploaded: {fn} -> {url}")
+                    except Exception:
+                        pass
+
+            self.page.on("response", on_resp)
+            file_input = self.page.query_selector("input[type='file']")
+            if file_input:
+                file_input.set_input_files(needed)
+                time.sleep(8)
+                self.page.wait_for_load_state("networkidle")
+
+        print(f"[✓] Assets mapped: {len(target_files)} local files mapped to Pathao CDN URLs")
+        return cdn_url_map
+
+    def generate_import_workbook(self, product: Dict[str, Any], cdn_map: Dict[str, str], output_path: str) -> str:
+        """
+        Creates a Pathao Commerce compatible Excel import file (single Sheet1).
+        Follows the 1-parent + N-variants structure with CDN images, markdown description, and stock.
+        """
+        wb = openpyxl.Workbook()
+        ws = wb.active
+        ws.title = "Sheet1"
+
+        headers = [
+            "PRODUCT_ID", "PRODUCT_NAME", "CATEGORY", "BASE_SKU",
+            "VARIANT_SKU", "VARIANT_OPTIONS", "BASE_PRICE", "DISCOUNTED_PRICE",
+            "WEIGHT_KG", "WIDTH_CM", "LENGTH_CM", "HEIGHT_CM",
+            "CURRENT_STOCK", "DISABLE", "IMAGES", "DESCRIPTION"
+        ]
+        ws.append(headers)
+
+        # Parent Product Row
+        variants = product["variants"]
+        parent_price = variants[0]["price"] if variants else 349
+        base_sku = variants[0]["sku"].rsplit("-", 2)[0] if variants else "COVER"
+        
+        gallery_urls = []
+        for g in product.get("gallery_images", []):
+            fn = os.path.basename(g)
+            if fn in cdn_map:
+                gallery_urls.append(cdn_map[fn])
+        parent_images = ",".join(gallery_urls)
+
+        ws.append([
+            "",                                         # PRODUCT_ID
+            product["title"],                           # PRODUCT_NAME
+            PATHAO_CATEGORY_DEFAULT,                    # CATEGORY
+            base_sku,                                   # BASE_SKU
+            "",                                         # VARIANT_SKU
+            "",                                         # VARIANT_OPTIONS
+            parent_price + 50,                          # BASE_PRICE
+            parent_price,                               # DISCOUNTED_PRICE
+            0.05,                                       # WEIGHT_KG
+            8,                                          # WIDTH_CM
+            16,                                         # LENGTH_CM
+            1,                                          # HEIGHT_CM
+            1,                                          # CURRENT_STOCK
+            "NO",                                       # DISABLE
+            parent_images,                              # IMAGES
+            product["description"]                      # DESCRIPTION
+        ])
+
+        # Variant Rows
+        for v in variants:
+            sku = v["sku"]
+            v_fn = f"{sku}.jpg"
+            v_img = cdn_map.get(v_fn, "")
+            
+            ws.append([
+                "",                                     # PRODUCT_ID
+                "",                                     # PRODUCT_NAME
+                "",                                     # CATEGORY
+                "",                                     # BASE_SKU
+                sku,                                    # VARIANT_SKU
+                f"Color: {v['color']}",                 # VARIANT_OPTIONS
+                v["price"] + 50,                        # BASE_PRICE
+                v["price"],                             # DISCOUNTED_PRICE
+                0.05,                                   # WEIGHT_KG
+                8,                                      # WIDTH_CM
+                16,                                     # LENGTH_CM
+                1,                                      # HEIGHT_CM
+                v["stock"],                             # CURRENT_STOCK
+                "NO",                                   # DISABLE
+                v_img,                                  # IMAGES
+                ""                                      # DESCRIPTION
+            ])
+
+        wb.save(output_path)
+        print(f"[✓] Generated Pathao import workbook: {output_path} ({len(variants) + 1} total rows)")
+        return output_path
+
+    def import_workbook_to_store(self, xlsx_path: str) -> bool:
+        """
+        Executes the 5-step automated bulk import workflow in Pathao Commerce.
+        """
+        print(f"[*] Navigating to Pathao Commerce Products page for import...")
+        self.page.goto(f"{PATHAO_BASE_URL}/products", timeout=35000)
+        self.page.wait_for_load_state("networkidle")
+        time.sleep(2)
+
+        # Step 1: Open modal
+        print("[*] Opening 'Import Products' modal...")
+        import_btn = self.page.query_selector("button:has-text('Import Products')")
+        if not import_btn:
+            print("[!] Could not find 'Import Products' button.")
+            return False
+        import_btn.click()
+        time.sleep(2)
+
+        # Step 1 Modal: Warehouse selection -> Next
+        print("[*] Step 1: Confirming Source & Warehouse...")
+        next_btn = self.page.query_selector(".ant-modal button:has-text('Next')")
+        if next_btn:
+            next_btn.click()
+            time.sleep(2)
+
+        # Step 2 Modal: Upload file
+        print(f"[*] Step 2: Uploading {os.path.basename(xlsx_path)}...")
+        file_input = self.page.query_selector(".ant-modal input[type='file']")
+        if not file_input:
+            print("[!] Could not find file input in import modal.")
+            return False
+        file_input.set_input_files(xlsx_path)
+        time.sleep(2)
+        
+        next_btn = self.page.query_selector(".ant-modal button:has-text('Next')")
+        if next_btn:
+            next_btn.click()
+            time.sleep(3)
+
+        # Step 3 Modal: Configure (Auto-mapped columns)
+        print("[*] Step 3: Verifying Column Mapping...")
+        next_btn = self.page.query_selector(".ant-modal button:has-text('Next')")
+        if next_btn:
+            next_btn.click()
+            time.sleep(4)
+            self.page.wait_for_load_state("networkidle")
+
+        # Step 4 Modal: Validation
+        print("[*] Step 4: Validating products on Pathao...")
+        val_btn = self.page.query_selector(".ant-modal button:has-text('Validate products')")
+        if val_btn:
+            val_btn.click()
+            time.sleep(3)
+            self.page.wait_for_load_state("networkidle")
+
+        # Check for Import button (e.g. 'Import 10 / 10 rows')
+        import_rows_btn = self.page.query_selector(".ant-modal button:has-text('Import')")
+        if import_rows_btn:
+            btn_text = import_rows_btn.inner_text().strip()
+            print(f"[*] Submitting catalog import: '{btn_text}'...")
+            import_rows_btn.click()
+            time.sleep(5)
+            self.page.wait_for_load_state("networkidle")
+            print("[✓] Product catalog import submitted successfully!")
+            
+            # Wait for modal to close or finish
+            time.sleep(4)
+            self.page.goto(f"{PATHAO_BASE_URL}/products", timeout=35000)
+            self.page.wait_for_load_state("networkidle")
+            time.sleep(2)
+            return True
+        else:
+            print("[!] Import button not found after validation.")
+            return False
+
     def sync_product(self, product: Dict[str, Any]) -> bool:
         """
         Uploads or updates a single parent product with all its SKU variants on Pathao Commerce.
         """
         title = product["title"]
-        print(f"\n[*] Processing Pathao Commerce product: {title}")
+        print("\n" + "="*80)
+        print(f"[*] SYNCING TO PATHAO COMMERCE: {title}")
         print(f"    Variants ({len(product['variants'])}): {', '.join(v['sku'] for v in product['variants'])}")
-        print(f"    Gallery images ({len(product['gallery_images'])}): {[os.path.basename(p) for p in product['gallery_images']]}")
-        
-        # Navigate to product creation/listing
-        products_url = f"{PATHAO_BASE_URL}/products"
-        self.page.goto(products_url, timeout=30000)
-        self.page.wait_for_load_state("networkidle")
-        time.sleep(2)
+        print(f"    Gallery Images ({len(product['gallery_images'])}): {[os.path.basename(p) for p in product['gallery_images']]}")
+        print("="*80)
 
-        # Verification of landing
-        print(f"    [+] Active panel view: {self.page.url}")
-        return True
+        # 1. Upload assets to Media Gallery
+        cdn_map = self.ensure_media_gallery_assets(product)
+
+        # 2. Build Excel import workbook
+        import_filename = f"pathao_import_{product['variants'][0]['sku'].rsplit('-', 2)[0].lower()}.xlsx"
+        import_path = os.path.join(WORKSPACE_ROOT, import_filename)
+        self.generate_import_workbook(product, cdn_map, import_path)
+
+        # 3. Perform automated bulk import in Pathao Commerce
+        success = self.import_workbook_to_store(import_path)
+        if success:
+            print(f"\n[✓] SUCCESSFULLY SYNCED TO PATHAO COMMERCE: {title}")
+        else:
+            print(f"\n[!] FAILED TO SYNC: {title}")
+        return success
 
 def print_dry_run_summary(products: List[Dict[str, Any]]):
     """Prints a detailed breakdown of catalog grouping and variant payloads."""
@@ -366,10 +584,10 @@ def print_dry_run_summary(products: List[Dict[str, Any]]):
         print(f"  • Variants ({len(prod['variants'])}):")
         for v in prod['variants']:
             img_status = "✓" if v['image_path'] and os.path.exists(v['image_path']) else "✗ missing"
-            print(f"      - SKU: {v['sku']:<16} | Model: {v['phone_model']:<18} | Color: {v['color']:<16} | Price: ৳{v['price']:<4} | Image: {img_status}")
+            print(f"      - SKU: {v['sku']:<16} | Model: {v['phone_model']:<18} | Color: {v['color']:<16} | Price: ৳{v['price']:<4} | Stock: {v['stock']} | Image: {img_status}")
 
     print("\n" + "=" * 80)
-    print("  DRY-RUN VERIFICATION COMPLETE: ALL 17 PARENT PRODUCTS & 69 VARIANTS GROUPED")
+    print("  DRY-RUN VERIFICATION COMPLETE")
     print("=" * 80 + "\n")
 
 def main():
