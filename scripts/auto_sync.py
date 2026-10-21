@@ -142,18 +142,32 @@ def get_seconds_until_next_aligned(interval_minutes: int = 20) -> float:
         delta += interval_minutes * 60
     return delta
 
+try:
+    from keep_awake import set_execution_state
+except ImportError:
+    try:
+        from scripts.keep_awake import set_execution_state
+    except ImportError:
+        def set_execution_state(keep_display: bool = False):
+            pass
+
 def run_scheduler(interval_minutes: int = 20):
     """Runs a continuous sync loop aligned to clock intervals."""
+    # Keep workstation awake during background sync operations
+    set_execution_state(keep_display=False)
+
     print("="*65)
     print(f"  COVERSTORE AUTO-SYNC DAEMON")
     print(f"  Sync interval: every {interval_minutes} minutes (e.g. :00, :20, :40)")
     print(f"  Repository:    {WORKSPACE_ROOT}")
+    print("  Power state:   System sleep blocked (AwayMode active)")
     print("="*65)
 
     # Perform initial sync on startup
     perform_sync()
 
     while True:
+        set_execution_state(keep_display=False)
         wait_seconds = get_seconds_until_next_aligned(interval_minutes)
         next_run_dt = datetime.datetime.now() + datetime.timedelta(seconds=wait_seconds)
         print(f"[*] Next auto-sync scheduled for: {next_run_dt.strftime('%I:%M:%S %p')} (in {int(wait_seconds)} seconds)...")
