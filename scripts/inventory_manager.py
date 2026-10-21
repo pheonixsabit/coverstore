@@ -196,8 +196,12 @@ def generate_seo_title(product_name: str, phone_model: str, material: str) -> st
     pm = (phone_model or "").strip()
     mat = (material or "").lower()
 
+    # Realme Neo8 Corrugated Metal Paint Hard PC
+    if "neo8" in pm.lower() and ("corrugated" in pn or "metal paint" in pn or "metal button" in pn):
+        return "Corrugated Metallic Paint Hard Case with Metal Buttons for Realme GT Neo 8 – Luxury Shockproof Anti-Drop Protective Back Cover"
+
     # Realme Neo8 / Neo7 Heat Dissipation Hard PC
-    if "neo8" in pm.lower() and ("pc" in mat or "heat" in pn or "dissipation" in pn):
+    if "neo8" in pm.lower() and ("heat" in pn or "dissipation" in pn or "cooling" in pn):
         return "Magnetic Heat Dissipation Matte Back Cover for Realme GT Neo 8 / Neo 7 – Ultra Thin Breathable Cooling Case with Ring Magnet"
 
     # Realme Neo8 Graphene Cooling Silicone
