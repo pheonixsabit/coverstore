@@ -91,6 +91,7 @@ MATERIAL_MAP: Dict[str, str] = {
 # Color Abbreviations
 COLOR_MAP = [
     (r'antique white|white|milky|silver white', 'WT'),
+    (r'titanium black', 'TB'),
     (r'classic black|black|matte black|midnight|graphite', 'BK'),
     (r'carbon gray|carbon grey', 'CG'),
     (r'titanium gray|titanium grey|titanium', 'TG'),

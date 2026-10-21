@@ -157,15 +157,23 @@ def load_and_group_inventory(csv_path: str = INVENTORY_CSV_PATH, is_preorder: bo
 
         # Find gallery images
         gallery_images = []
+        is_v2 = any("-V2" in i.get("Product Code", "") or "-V3" in i.get("Product Code", "") for i in items)
         for model in phone_models:
             for mat in materials:
                 gal_dir = os.path.join(WORKSPACE_ROOT, model, mat, "gallery")
                 if os.path.exists(gal_dir):
-                    imgs = [
+                    all_imgs = [
                         os.path.join(gal_dir, f)
                         for f in sorted(os.listdir(gal_dir))
                         if f.lower().endswith((".jpg", ".jpeg", ".png", ".webp"))
                     ]
+                    if len(all_imgs) > 5:
+                        if is_v2:
+                            imgs = [img for img in all_imgs if int(re.search(r'gallery_(\d+)', os.path.basename(img)).group(1)) > 5]
+                        else:
+                            imgs = [img for img in all_imgs if int(re.search(r'gallery_(\d+)', os.path.basename(img)).group(1)) <= 5]
+                    else:
+                        imgs = all_imgs
                     for img in imgs:
                         if img not in gallery_images:
                             gallery_images.append(img)
