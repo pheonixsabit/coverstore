@@ -305,7 +305,7 @@ class TestBoundary05SKUDisambiguation(unittest.TestCase):
     def test_b05_already_suffixed_sku(self):
         existing = {"SKU-1-V2"}
         res = sku_generator.disambiguate_sku("SKU-1-V2", existing)
-        self.assertTrue(res.startswith("SKU-1-V2"))
+        self.assertEqual(res, "SKU-1-V3")
 
     def test_b05_case_matching(self):
         existing = {"RN8-SIL-WT-S"}
