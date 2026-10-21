@@ -29,7 +29,7 @@
 ## 5. Inventory Dataset Standard (Financial & Pricing Schema)
 - **Synchronization Files**: `inventory.csv` (UTF-8 with BOM) and `inventory.xlsx` (styled headers, auto-column widths, and live Excel formulas).
 - **Sync Script**: `scripts/inventory_manager.py` merges Google Sheet metadata, preserves historical unit logistics costs, and computes financial formulas.
-- **21-Column Schema**:
+- **22-Column Schema**:
   1. `Product Code`: Custom SKU (`[model]-[material]-[color]-[finish]`).
   2. `SEO Title`: Premium, SEO-optimized title for Daraz listing.
   3. `Product Name`: Full product title / supplier title.
@@ -37,20 +37,21 @@
   5. `Color`: Variant color name.
   6. `Phone Model`: Exact phone model name (e.g., Realme Neo8).
   7. `Warranty`: Warranty status (`No` / `Yes`).
-  8. `source link`: MoveOn base URL or source label.
-  9. `link`: Exact product link.
-  10. `Local Image Path`: Relative local filepath to the variant image (e.g., `Realme Neo8/Liquid Silicone/sku/RN8-SIL-WT-S.jpg`).
-  11. `product price`: Base unit procurement price in BDT (collected directly from MoveOn dropship/offer price, which is natively in BDT; do NOT multiply by 1.1703).
-  12. `china delivery`: China domestic logistics share per unit (manual input by user, default 10.0 BDT).
-  13. `air shipping`: International air freight share per unit (`weight x 2 x 780/kg`, default floor 50.0 BDT; dummy/fake weights < 0.02kg fallback to 50.0–80.0 BDT baseline).
-  14. `bd delivery`: Bangladesh local delivery share per unit (fixed 5.0 BDT).
-  15. `packaging`: Packaging material cost (fixed 11.5 Taka).
-  16. `printing`: Labeling/printing cost (fixed 20.0 Taka).
-  17. `other`: Miscellaneous expenses (default 0.0 BDT).
-  18. `landing cost`: Total unit cost: `=SUM(K{r}:Q{r})`.
-  19. `margin`: Dynamic markup: `=IF(R{r}<300, R{r}*1.4, IF(R{r}<400, R{r}*1.33, R{r}*1.25))`.
-  20. `sell price`: Rounding ending in `00` (<25), `49` (25–74), or `99` (75–99): `=INT(S{r}/100)*100 + IF(MOD(ROUND(S{r},0),100)<25, 0, IF(MOD(ROUND(S{r},0),100)<=74, 49, 99))`.
-  21. `max discount`: Tiered ceiling discount formula: `=IF(T{r}<300, 0, MIN(99, IF(T{r}<500, T{r}*7%, IF(T{r}<700, T{r}*12%, T{r}*15%))))`.
+  8. `Pre-Order`: Pre-order status (`Yes` / `No`).
+  9. `source link`: MoveOn base URL or source label.
+  10. `link`: Exact product link.
+  11. `Local Image Path`: Relative local filepath to the variant image (e.g., `Realme Neo8/Liquid Silicone/sku/RN8-SIL-WT-S.jpg`).
+  12. `product price`: Base unit procurement price in BDT (collected directly from MoveOn dropship/offer price, which is natively in BDT; do NOT multiply by 1.1703).
+  13. `china delivery`: China domestic logistics share per unit (manual input by user, default 10.0 BDT).
+  14. `air shipping`: International air freight share per unit (`weight x 2 x 780/kg`, default floor 50.0 BDT; dummy/fake weights < 0.02kg fallback to 50.0–80.0 BDT baseline).
+  15. `bd delivery`: Bangladesh local delivery share per unit (fixed 5.0 BDT).
+  16. `packaging`: Packaging material cost (fixed 11.5 Taka).
+  17. `printing`: Labeling/printing cost (fixed 20.0 Taka).
+  18. `other`: Miscellaneous expenses (default 0.0 BDT).
+  19. `landing cost`: Total unit cost: `=SUM(L{r}:R{r})`.
+  20. `margin`: Dynamic markup: `=IF(S{r}<300, S{r}*1.4, IF(S{r}<400, S{r}*1.33, S{r}*1.25))`.
+  21. `sell price`: Rounding ending in `00` (<25), `49` (25–74), or `99` (75–99): `=INT(T{r}/100)*100 + IF(MOD(ROUND(T{r},0),100)<25, 0, IF(MOD(ROUND(T{r},0),100)<=74, 49, 99))`.
+  22. `max discount`: Tiered ceiling discount formula: `=IF(U{r}<300, 0, MIN(99, IF(U{r}<500, U{r}*7%, IF(U{r}<700, U{r}*12%, U{r}*15%))))`.
 - **Automatic Sync**: Whenever `scripts/downloader.py` finishes downloading and translating assets, it automatically invokes `append_downloaded_product` to append newly processed variants with default financial figures to `inventory.csv` and `inventory.xlsx`.
 
 ## 6. Multi-PC 20-Minute Auto-Sync Standard

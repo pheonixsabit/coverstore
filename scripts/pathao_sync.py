@@ -61,7 +61,7 @@ def get_product_description_for_material(material: str, phone_models: List[str],
     preorder_notice = (
         "⚡ PRE-ORDER ITEM (প্রি-অর্ডার পণ্য):\n"
         "• Import Notice: Sourced directly from authentic overseas manufacturer upon order confirmation.\n"
-        "• Estimated Delivery Timeline: 7 to 12 working days across Bangladesh.\n"
+        "• Estimated Delivery Timeline: 20 to 25 days across Bangladesh.\n"
         "• Payment: Nationwide Cash on Delivery (COD) supported.\n"
         "• Inspection: 100% Parcel Inspection Enabled — verify your cover before paying!\n"
         "─────────────────────────────────────────────\n\n"
@@ -152,7 +152,9 @@ def load_and_group_inventory(csv_path: str = INVENTORY_CSV_PATH, is_preorder: bo
         if not title:
             title = f"Luxury {primary_material} Protective Case for {' / '.join(phone_models)}"
 
-        if is_preorder and not title.startswith("[PRE-ORDER]"):
+        row_preorder = any(str(i.get("Pre-Order", "")).strip().lower() in ["yes", "true", "1"] for i in items)
+        product_is_preorder = row_preorder if any(i.get("Pre-Order") for i in items) else is_preorder
+        if product_is_preorder and not title.startswith("[PRE-ORDER]"):
             title = f"[PRE-ORDER] {title}"
 
         # Find gallery images
@@ -207,7 +209,7 @@ def load_and_group_inventory(csv_path: str = INVENTORY_CSV_PATH, is_preorder: bo
                 "image_path": img_path
             })
 
-        description = get_product_description_for_material(primary_material, phone_models, is_preorder=is_preorder)
+        description = get_product_description_for_material(primary_material, phone_models, is_preorder=product_is_preorder)
 
         products.append({
             "source_link": link,

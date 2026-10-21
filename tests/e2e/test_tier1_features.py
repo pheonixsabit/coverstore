@@ -388,17 +388,18 @@ class TestFeature08ChinaDeliveryCharge(unittest.TestCase):
 
 
 # ============================================================================
-# Feature 9: Financial Pricing & 21-Column Schema (M1)
+# Feature 9: Financial Pricing & 22-Column Schema (M1)
 # ============================================================================
 class TestFeature09FinancialPricingSchema(unittest.TestCase):
-    """Verifies 21-column schema and financial formulas."""
+    """Verifies 22-column schema and financial formulas."""
 
     def test_f09_schema_exact_21_columns(self):
-        self.assertEqual(len(inventory_manager.FIELDNAMES), 21)
+        self.assertEqual(len(inventory_manager.FIELDNAMES), 22)
         expected_first = "Product Code"
         expected_last = "max discount"
         self.assertEqual(inventory_manager.FIELDNAMES[0], expected_first)
         self.assertEqual(inventory_manager.FIELDNAMES[-1], expected_last)
+        self.assertIn("Pre-Order", inventory_manager.FIELDNAMES)
 
     def test_f09_landing_cost_formula_and_value(self):
         cost = inventory_manager.calculate_landing_cost(100.0, 10.0, 50.0, 5.0, 11.5, 20.0, 0.0)

@@ -166,7 +166,7 @@ For products imported on-demand from overseas manufacturers, prepend this standa
 ```markdown
 ⚡ PRE-ORDER ITEM (প্রি-অর্ডার পণ্য):
 • Import Notice: Sourced directly from authentic overseas manufacturer upon order confirmation.
-• Estimated Delivery Timeline: 7 to 12 working days across Bangladesh.
+• Estimated Delivery Timeline: 20 to 25 days across Bangladesh.
 • Payment: Nationwide Cash on Delivery (COD) supported.
 • Inspection: 100% Parcel Inspection Enabled — verify your cover before paying!
 ─────────────────────────────────────────────

@@ -90,6 +90,7 @@ class PipelineOrchestrator:
         self,
         url: str,
         china_delivery: Optional[float] = None,
+        preorder: Optional[str] = None,
         model: Optional[str] = None,
         material: Optional[str] = None,
         dry_run: bool = False,
@@ -99,6 +100,7 @@ class PipelineOrchestrator:
     ):
         self.url = url
         self.china_delivery = china_delivery
+        self.preorder = preorder
         self.model = model
         self.material = material
         self.dry_run = dry_run
@@ -144,12 +146,26 @@ class PipelineOrchestrator:
                     "When running non-interactively or in automated pipelines, provide --china-delivery <BDT>."
                 )
 
+        if self.preorder is None:
+            if sys.stdin.isatty():
+                print("\n" + "="*70)
+                print(" [Pre-Order Status] Is this product Pre-Order (20-25 days) or Ready Stock?")
+                print("="*70)
+                try:
+                    p_in = input("Enter 'Y' for Pre-Order, or 'N' for Ready Stock [Y]: ").strip().lower()
+                    self.preorder = "No" if p_in in ["n", "no"] else "Yes"
+                except Exception:
+                    self.preorder = "Yes"
+            else:
+                self.preorder = "Yes"
+
         if not self.dry_run:
             cmd = [
                 sys.executable,
                 os.path.join(SCRIPTS_DIR, "downloader.py"),
                 "--url", self.url,
                 "--china-delivery", str(self.china_delivery),
+                "--preorder", str(self.preorder),
                 "--no-push"
             ]
             if self.model:
@@ -377,6 +393,7 @@ class PipelineOrchestrator:
 def run_pipeline(
     url: str,
     china_delivery: Optional[float] = None,
+    preorder: Optional[str] = None,
     model: Optional[str] = None,
     material: Optional[str] = None,
     dry_run: bool = False,
@@ -389,6 +406,7 @@ def run_pipeline(
     orchestrator = PipelineOrchestrator(
         url=url,
         china_delivery=china_delivery,
+        preorder=preorder,
         model=model,
         material=material,
         dry_run=dry_run,
@@ -403,6 +421,7 @@ def main():
     parser = argparse.ArgumentParser(description="CoverStore Unified Pipeline Orchestrator (Agents 1-3 & Git Sync)")
     parser.add_argument("--url", "-u", type=str, default=None, help="MoveOn single product URL")
     parser.add_argument("--china-delivery", "-c", type=float, default=None, help="China domestic delivery charge in BDT per unit")
+    parser.add_argument("--preorder", type=str, default=None, help="Pre-order status (Yes or No)")
     parser.add_argument("--model", "-m", type=str, default=None, help="Phone model name override")
     parser.add_argument("--material", type=str, default=None, help="Material name override")
     parser.add_argument("--dry-run", "-d", action="store_true", help="Simulate pipeline execution without mutating remote stores or repository")
@@ -432,6 +451,7 @@ def main():
         result = run_pipeline(
             url=url,
             china_delivery=args.china_delivery,
+            preorder=args.preorder,
             model=args.model,
             material=args.material,
             dry_run=args.dry_run,

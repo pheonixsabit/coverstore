@@ -146,6 +146,7 @@ def main():
     parser = argparse.ArgumentParser(description="Download phone cover images from MoveOn Global for specific phone model and material.")
     parser.add_argument("--url", "-u", type=str, help="MoveOn product URL")
     parser.add_argument("--china-delivery", "-c", type=float, default=None, help="China domestic delivery fee in BDT per unit")
+    parser.add_argument("--preorder", type=str, default=None, help="Pre-order status ('Yes' or 'No')")
     parser.add_argument("--model", "-m", type=str, default=None, help="Phone model name(s), comma-separated, or 'all'")
     parser.add_argument("--material", type=str, default=None, help="Material override name")
     parser.add_argument("--version-suffix", type=str, default=None, help="Force a version suffix (e.g. -V2) for SKU disambiguation")
@@ -325,7 +326,7 @@ def main():
     print("\n[*] Updating inventory records (inventory.csv / inventory.xlsx)...")
     try:
         china_delivery = prompt_china_delivery(args.china_delivery)
-        append_downloaded_product(product_info, selected_models, material, url, china_del=china_delivery)
+        append_downloaded_product(product_info, selected_models, material, url, china_del=china_delivery, preorder=args.preorder)
     except Exception as e:
         print(f"[!] Error updating inventory records: {e}")
         raise

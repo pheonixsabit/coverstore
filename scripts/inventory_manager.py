@@ -30,7 +30,7 @@ INVENTORY_CSV_PATH = os.path.join(WORKSPACE_ROOT, "inventory.csv")
 INVENTORY_XLSX_PATH = os.path.join(WORKSPACE_ROOT, "inventory.xlsx")
 GOOGLE_SHEET_XLSX_URL = "https://docs.google.com/spreadsheets/d/1cfLya8zgGBLZfor3g7-ljrjw7lmo3J28uxkqiOONzhk/export?format=xlsx"
 
-# 21-Column Financial & Listing Schema
+# 22-Column Financial & Listing Schema
 FIELDNAMES = [
     "Product Code",       # A (1)
     "SEO Title",          # B (2)
@@ -38,21 +38,22 @@ FIELDNAMES = [
     "Material",           # D (4)
     "Color",              # E (5)
     "Phone Model",        # F (6)
-    "Warranty",           # F (7)
-    "source link",        # H (8)
-    "link",               # I (9)
-    "Local Image Path",   # J (10)
-    "product price",      # K (11)
-    "china delivery",     # L (12)
-    "air shipping",       # M (13)
-    "bd delivery",        # N (14)
-    "packaging",          # O (15)
-    "printing",           # P (16)
-    "other",              # Q (17)
-    "landing cost",       # R (18)
-    "margin",             # S (19)
-    "sell price",         # T (20)
-    "max discount"        # U (21)
+    "Warranty",           # G (7)
+    "Pre-Order",          # H (8)
+    "source link",        # I (9)
+    "link",               # J (10)
+    "Local Image Path",   # K (11)
+    "product price",      # L (12)
+    "china delivery",     # M (13)
+    "air shipping",       # N (14)
+    "bd delivery",        # O (15)
+    "packaging",          # P (16)
+    "printing",           # Q (17)
+    "other",              # R (18)
+    "landing cost",       # S (19)
+    "margin",             # T (20)
+    "sell price",         # U (21)
+    "max discount"        # V (22)
 ]
 
 NUMERIC_COST_FIELDS = [
@@ -94,6 +95,37 @@ def get_existing_skus(csv_path: str = INVENTORY_CSV_PATH) -> set:
     rows = load_existing_inventory(csv_path)
     return {r.get("Product Code", "").strip() for r in rows if r.get("Product Code")}
 
+def prompt_preorder_status(cli_val: Optional[str] = None) -> str:
+    """
+    Prompts whether the current product is Pre-Order ('Yes') or Ready Stock ('No').
+    """
+    if cli_val is not None:
+        clean = str(cli_val).strip().lower()
+        if clean in ["yes", "y", "true", "1", "pre-order", "preorder"]:
+            return "Yes"
+        elif clean in ["no", "n", "false", "0", "ready", "stock"]:
+            return "No"
+
+    if sys.stdin.isatty():
+        print("\n" + "="*60)
+        print(" [?] PRE-ORDER STATUS SELECTION")
+        print("     Is this product Pre-Order (20-25 days delivery) or Ready Stock?")
+        print("="*60)
+        while True:
+            try:
+                raw_input = input("Enter 'Y' for Pre-Order, or 'N' for Ready Stock [Y]: ").strip().lower()
+                if not raw_input or raw_input in ["y", "yes"]:
+                    print(" [✓] Product marked as: PRE-ORDER (20-25 days)")
+                    return "Yes"
+                elif raw_input in ["n", "no"]:
+                    print(" [✓] Product marked as: READY STOCK")
+                    return "No"
+                else:
+                    print(" [!] Please enter 'Y' or 'N'.")
+            except (EOFError, KeyboardInterrupt):
+                print("\n [✓] Defaulted to PRE-ORDER (Yes)")
+                return "Yes"
+    return "Yes"
 def prompt_china_delivery(cli_val: Optional[float] = None) -> float:
     """
     Enforces Rule 9 Mandatory China Domestic Delivery Charge Standard:
@@ -411,13 +443,13 @@ def save_to_excel(rows: List[Dict[str, Any]], filepath: str = INVENTORY_XLSX_PAT
         row_vals = []
         for k in FIELDNAMES:
             if k == "landing cost":
-                row_vals.append(f"=SUM(K{row_idx}:Q{row_idx})")
+                row_vals.append(f"=SUM(L{row_idx}:R{row_idx})")
             elif k == "margin":
-                row_vals.append(f"=IF(R{row_idx}<300, R{row_idx}*1.4, IF(R{row_idx}<400, R{row_idx}*1.33, R{row_idx}*1.25))")
+                row_vals.append(f"=IF(S{row_idx}<300, S{row_idx}*1.4, IF(S{row_idx}<400, S{row_idx}*1.33, S{row_idx}*1.25))")
             elif k == "sell price":
-                row_vals.append(f"=INT(S{row_idx}/100)*100 + IF(MOD(ROUND(S{row_idx},0),100)<25, 0, IF(MOD(ROUND(S{row_idx},0),100)<=74, 49, 99))")
+                row_vals.append(f"=INT(T{row_idx}/100)*100 + IF(MOD(ROUND(T{row_idx},0),100)<25, 0, IF(MOD(ROUND(T{row_idx},0),100)<=74, 49, 99))")
             elif k == "max discount":
-                row_vals.append(f"=IF(T{row_idx}<300, 0, MIN(99, IF(T{row_idx}<500, T{row_idx}*7%, IF(T{row_idx}<700, T{row_idx}*12%, T{row_idx}*15%))))")
+                row_vals.append(f"=IF(U{row_idx}<300, 0, MIN(99, IF(U{row_idx}<500, U{row_idx}*7%, IF(U{row_idx}<700, U{row_idx}*12%, U{row_idx}*15%))))")
             elif k in NUMERIC_COST_FIELDS:
                 row_vals.append(clean_float(r.get(k)))
             else:
@@ -440,7 +472,7 @@ def save_to_excel(rows: List[Dict[str, Any]], filepath: str = INVENTORY_XLSX_PAT
             elif field_name == "sell price":
                 cell.alignment = right_align
                 cell.number_format = "#,##0"
-            elif field_name in ["Product Code", "Material", "Color", "Phone Model", "Warranty", "source link"]:
+            elif field_name in ["Product Code", "Material", "Color", "Phone Model", "Warranty", "Pre-Order", "source link"]:
                 cell.alignment = center_align
             else:
                 cell.alignment = left_align
@@ -573,6 +605,7 @@ def append_downloaded_product(
     material: str,
     product_url: str,
     china_del: Optional[float] = None,
+    preorder: Optional[str] = None,
     air_ship: Optional[float] = None,
     bd_del: float = 5.0,
     packaging: float = 11.5,
@@ -580,13 +613,18 @@ def append_downloaded_product(
     other: float = 0.0
 ):
     """
-    Appends newly downloaded product variants into inventory.csv and inventory.xlsx using 21-column schema.
+    Appends newly downloaded product variants into inventory.csv and inventory.xlsx using 22-column schema.
     Mandatory China domestic delivery charge is enforced per Rule 9.
     """
     if china_del is None:
         china_del = prompt_china_delivery()
     else:
         china_del = clean_float(china_del)
+
+    if preorder is None:
+        preorder = prompt_preorder_status()
+    else:
+        preorder = prompt_preorder_status(preorder)
 
     title = product_info.get("title", "")
     skus_by_model = product_info.get("skus_by_model", {})
@@ -674,6 +712,7 @@ def append_downloaded_product(
                 "Color": color_name,
                 "Phone Model": model_name,
                 "Warranty": "No",
+                "Pre-Order": preorder,
                 "source link": "Link",
                 "link": product_url,
                 "Local Image Path": local_path,
@@ -699,6 +738,7 @@ def append_downloaded_product(
                     r["Material"] = row["Material"]
                     r["Color"] = row["Color"]
                     r["Phone Model"] = row["Phone Model"]
+                    r["Pre-Order"] = preorder
                     r["product price"] = prod_price
                     r["china delivery"] = china_del
                     r["air shipping"] = sku_air_ship
