@@ -473,6 +473,18 @@ class ImageTranslator:
             if x2 <= x1 or y2 <= y1:
                 continue
 
+            # Strict guard against smearing clean non-watermarked areas or subject matter:
+            # Watermarks only exist on flat uniform backgrounds where top/bottom borders match.
+            top_pixels = [im.getpixel((x, max(0, y1 - 2)))[:3] for x in range(x1, x2)]
+            bot_pixels = [im.getpixel((x, min(h - 1, y2 + 2)))[:3] for x in range(x1, x2)]
+            avg_diff = sum(sum(abs(top_pixels[i][c] - bot_pixels[i][c]) for c in range(3)) for i in range(len(top_pixels))) / len(top_pixels)
+            rv = max(p[0] for p in top_pixels) - min(p[0] for p in top_pixels)
+            gv = max(p[1] for p in top_pixels) - min(p[1] for p in top_pixels)
+            bv = max(p[2] for p in top_pixels) - min(p[2] for p in top_pixels)
+            max_v = max(rv, gv, bv)
+            if avg_diff > 35 or max_v > 35:
+                continue
+
             top_sample = im.getpixel((int((x1 + x2) / 2), max(0, y1 - 2)))[:3]
 
             # Sample patch center with dense grid to detect thin watermark text strokes
@@ -490,8 +502,6 @@ class ImageTranslator:
                 for p in center_samples
             )
             if has_contrast:
-                top_pixels = [im.getpixel((x, max(0, y1 - 2)))[:3] for x in range(x1, x2)]
-                bot_pixels = [im.getpixel((x, min(h - 1, y2 + 2)))[:3] for x in range(x1, x2)]
                 bh = y2 - y1
                 for y in range(y1, y2):
                     fy = (y - y1) / float(bh - 1) if bh > 1 else 0.0
@@ -662,9 +672,13 @@ class ImageTranslator:
         material: str,
     ):
         """Translates Hard PC / Magnetic Matte gallery images across 800x800 and 1600x1600."""
-        # gallery_01: Magnetic Frosted showcase + packaging box spine
+        # gallery_01: Check for top headline banner or packaging box spine
         if "01" in fname:
-            if w >= 1200:
+            # 1. Check for packaging box spine (e.g. Honor X80i / Realme Neo8 1600x1600 AF Lens Showcase)
+            px = [im.getpixel((int(0.04 * w), int(y * h)))[:3] for y in [0.2, 0.4, 0.6, 0.8]]
+            is_spine = all(abs(c[0] - 56) < 15 and abs(c[1] - 60) < 15 and abs(c[2] - 71) < 15 for c in px)
+
+            if is_spine and w >= 1200:
                 # 1600x1600 Magnetic Matte AF Lens Showcase (Honor X80i style)
                 # 1. Left Spine Box (covers vertical Chinese on box spine completely)
                 spine_box = self.scale_box((0.015, 0.10, 0.08, 0.90), w, h)
@@ -719,57 +733,85 @@ class ImageTranslator:
                     draw.text((scaled_b[0] + (scaled_b[2] - scaled_b[0] - bw) // 2, scaled_b[1] + (scaled_b[3] - scaled_b[1] - bh) // 2), b_text, fill=(30, 30, 30), font=f_sm)
                 return
 
-            # 800x800 Frosted PC showcase (Realme Neo8 style)
-            bg = (175, 175, 175)
+            # 2. Check for Top Horizontal Headline Banner (e.g. S26 Ultra Wood Grain '无边框木纹磁吸壳')
+            headline_box = (int(0.24 * w), int(0.01 * h), int(0.98 * w), int(0.13 * h))
+            crop_hl = im.crop(headline_box)
+            dark_hl = sum(1 for x in range(0, crop_hl.width, 5) for y in range(0, crop_hl.height, 5) if sum(crop_hl.getpixel((x, y))) / 3 < 50)
+            tot_hl = sum(1 for x in range(0, crop_hl.width, 5) for y in range(0, crop_hl.height, 5))
+            has_top_headline = (dark_hl / tot_hl) > 0.12 if tot_hl > 0 else False
 
-            # Block 1: Title covering '磁吸磨砂壳' without cutting glyphs
-            title_box = self.scale_box((0.55, 0.32, 1.0, 0.45), w, h)
-            draw.rectangle(title_box, fill=bg)
-            f_title, tw, th, _ = self.fit_text(draw, "MAGNETIC", "arialbd.ttf", int(0.40 * w), int(0.055 * h), start_size=int(0.045 * w))
-            draw.text((int(0.70 * w), int(0.335 * h)), "MAGNETIC", fill=(255, 255, 255), font=f_title)
-            draw.text((int(0.70 * w), int(0.390 * h)), "FROSTED", fill=(255, 255, 255), font=f_title)
+            if has_top_headline:
+                from PIL import ImageFilter
+                # Clone clean background texture from immediately below the text banner
+                sample_y1 = int(0.135 * h)
+                sample_y2 = int(0.150 * h)
+                sample_x1 = int(0.380 * w)
+                sample_x2 = int(0.780 * w)
 
-            # Block 2: Icon labels covering '磨砂背板' and old labels
-            icon_box = self.scale_box((0.55, 0.515, 1.0, 0.565), w, h)
-            draw.rectangle(icon_box, fill=bg)
-            f_icon, _, _, _ = self.fit_text(draw, "FROSTED", "segoeui.ttf", int(0.12 * w), int(0.025 * h), start_size=int(0.016 * w))
-            draw.text((int(0.72 * w), int(0.525 * h)), "FROSTED", fill=(255, 255, 255), font=f_icon)
-            draw.text((int(0.83 * w), int(0.525 * h)), "DROP-PROOF", fill=(255, 255, 255), font=f_icon)
-            draw.text((int(0.93 * w), int(0.525 * h)), "ANTI-SMUDGE", fill=(255, 255, 255), font=f_icon)
+                sample_patch = im.crop((sample_x1, sample_y1, sample_x2, sample_y2))
+                banner_x1 = int(0.240 * w)
+                banner_y1 = int(0.012 * h)
+                banner_w = int(0.740 * w)
+                banner_h = int(0.118 * h)
 
-            # Block 3: Compatible covering '适用于:'
-            comp_box = self.scale_box((0.55, 0.59, 0.95, 0.655), w, h)
-            draw.rectangle(comp_box, fill=bg)
-            f_comp, _, _, _ = self.fit_text(draw, "COMPATIBLE:", "segoeuib.ttf", int(0.35 * w), int(0.035 * h), start_size=int(0.028 * w))
-            draw.text((int(0.70 * w), int(0.605 * h)), "COMPATIBLE:", fill=(255, 255, 255), font=f_comp)
+                bg_fill = sample_patch.resize((banner_w, banner_h)).filter(ImageFilter.GaussianBlur(radius=int(max(2, 0.003 * w))))
+                im.paste(bg_fill, (banner_x1, banner_y1))
+
+                title_text = "FRAMELESS WOOD GRAIN MAGNETIC" if "wood" in model_name.lower() or "s26" in model_name.lower() else f"OFFICIAL {model_name.upper()} CASE"
+                try:
+                    font_title = ImageFont.truetype("C:/Windows/Fonts/impact.ttf", int(0.052 * w))
+                except Exception:
+                    font_title = ImageFont.truetype("C:/Windows/Fonts/arialbd.ttf", int(0.046 * w))
+
+                tx = banner_x1 + int(0.01 * w)
+                ty = banner_y1 + int(0.03 * h)
+                for ox in range(-3, 4):
+                    for oy in range(-3, 4):
+                        if ox != 0 or oy != 0:
+                            draw.text((tx + ox, ty + oy), title_text, font=font_title, fill=(30, 30, 30))
+
+                draw.text((tx, ty), title_text, font=font_title, fill=(255, 255, 255))
+                return
+
+            # 3. Check for 800x800 Frosted PC showcase (Realme Neo8 style right-hand banner)
+            corner_col = im.getpixel((int(0.05 * w), int(0.05 * h)))[:3]
+            is_legacy_frosted = abs(corner_col[0] - 175) < 35 and abs(corner_col[1] - 175) < 35 and abs(corner_col[2] - 175) < 35
+
+            if is_legacy_frosted:
+                bg = (175, 175, 175)
+
+                # Block 1: Title covering '磁吸磨砂壳' without cutting glyphs
+                title_box = self.scale_box((0.55, 0.32, 1.0, 0.45), w, h)
+                draw.rectangle(title_box, fill=bg)
+                f_title, tw, th, _ = self.fit_text(draw, "MAGNETIC", "arialbd.ttf", int(0.40 * w), int(0.055 * h), start_size=int(0.045 * w))
+                draw.text((int(0.70 * w), int(0.335 * h)), "MAGNETIC", fill=(255, 255, 255), font=f_title)
+                draw.text((int(0.70 * w), int(0.390 * h)), "FROSTED", fill=(255, 255, 255), font=f_title)
+
+                # Block 2: Icon labels covering '磨砂背板' and old labels
+                icon_box = self.scale_box((0.55, 0.515, 1.0, 0.565), w, h)
+                draw.rectangle(icon_box, fill=bg)
+                f_icon, _, _, _ = self.fit_text(draw, "FROSTED", "segoeui.ttf", int(0.12 * w), int(0.025 * h), start_size=int(0.016 * w))
+                draw.text((int(0.72 * w), int(0.525 * h)), "FROSTED", fill=(255, 255, 255), font=f_icon)
+                draw.text((int(0.83 * w), int(0.525 * h)), "DROP-PROOF", fill=(255, 255, 255), font=f_icon)
+                draw.text((int(0.93 * w), int(0.525 * h)), "ANTI-SMUDGE", fill=(255, 255, 255), font=f_icon)
+
+                # Block 3: Compatible covering '适用于:'
+                comp_box = self.scale_box((0.55, 0.59, 0.95, 0.655), w, h)
+                draw.rectangle(comp_box, fill=bg)
+                f_comp, _, _, _ = self.fit_text(draw, "COMPATIBLE:", "segoeuib.ttf", int(0.35 * w), int(0.035 * h), start_size=int(0.028 * w))
+                draw.text((int(0.70 * w), int(0.605 * h)), "COMPATIBLE:", fill=(255, 255, 255), font=f_comp)
+                return
+
+            # Clean product photography with no Chinese text: leave pristine
             return
 
         # gallery_02: Scratch Resistant / Studio Backdrop
         if "02" in fname:
-            sample_col = im.getpixel((int(0.10 * w), int(0.05 * h)))[:3]
-            if sum(sample_col) > 400:
-                # Light studio textured backdrop: Frosted PC header pill
-                header_box = self.scale_box((0.20, 0.02, 0.80, 0.19), w, h)
-                draw.rectangle(header_box, fill=(246, 246, 246))
-                f_title, tw, th, _ = self.fit_text(draw, "FROSTED PC · MAGNETIC", "arialbd.ttf", int(0.55 * w), int(0.055 * h), start_size=int(0.038 * w))
-                draw.text((header_box[0] + (header_box[2] - header_box[0] - tw) // 2, header_box[1] + int(0.02 * h)), "FROSTED PC · MAGNETIC", fill=(25, 25, 25), font=f_title)
+            corner_col = im.getpixel((int(0.05 * w), int(0.05 * h)))[:3]
+            is_dark_infographic = sum(corner_col) < 120 and max(corner_col) < 50
 
-                model_lbl = f"FOR {model_name.upper()}"
-                f_p1, mw, mh, _ = self.fit_text(draw, model_lbl, "arialbd.ttf", int(0.26 * w), int(0.035 * h), start_size=int(0.019 * w))
-                p1_w = mw + int(0.03 * w)
-                p1_h = int(0.055 * h)
-                p1_x = header_box[0] + int(0.02 * w)
-                p1_y = header_box[1] + int(0.09 * h)
-                draw.rounded_rectangle([p1_x, p1_y, p1_x + p1_w, p1_y + p1_h], radius=int(0.025 * h), fill=(255, 255, 255), outline=(220, 220, 225), width=1)
-                draw.text((p1_x + (p1_w - mw) // 2, p1_y + (p1_h - mh) // 2), model_lbl, fill=(30, 30, 35), font=f_p1)
-
-                f_p2, cw, ch, _ = self.fit_text(draw, "PEAK ROCK", "arialbd.ttf", int(0.26 * w), int(0.035 * h), start_size=int(0.019 * w))
-                p2_w = cw + int(0.03 * w)
-                p2_x = p1_x + p1_w + int(0.02 * w)
-                draw.rounded_rectangle([p2_x, p1_y, p2_x + p2_w, p1_y + p1_h], radius=int(0.025 * h), fill=(20, 20, 25))
-                draw.text((p2_x + (p2_w - cw) // 2, p1_y + (p1_h - ch) // 2), "PEAK ROCK", fill=(255, 255, 255), font=f_p2)
-            else:
-                # Dark technical backdrop
+            if is_dark_infographic:
+                # Dark technical backdrop (Realme Neo8 / Honor X80i infographic)
                 top_box = self.scale_box((0.02, 0.02, 0.98, 0.26), w, h)
                 self.inpaint_gradient(im, top_box, c_top=(12, 16, 22), c_bottom=(12, 16, 22))
                 title = "SCRATCH & ABRASION RESISTANT"
@@ -781,12 +823,46 @@ class ImageTranslator:
                 tag = "DURABLE HARD PC MATERIAL"
                 f_tag, _, _, _ = self.fit_text(draw, tag, "arialbd.ttf", int(0.92 * w), int(0.035 * h), start_size=int(0.024 * w))
                 draw.text((int(0.04 * w), int(0.155 * h)), tag, fill=(255, 120, 0), font=f_tag)
+                return
+
+            # Check for light studio infographic with Chinese text in header box
+            header_box = (int(0.20 * w), int(0.02 * h), int(0.80 * w), int(0.19 * h))
+            crop_h = im.crop(header_box)
+            dark_count = sum(1 for x in range(0, crop_h.width, 5) for y in range(0, crop_h.height, 5) if sum(crop_h.getpixel((x, y))) / 3 < 50)
+            tot_h = sum(1 for x in range(0, crop_h.width, 5) for y in range(0, crop_h.height, 5))
+            has_light_header = (dark_count / tot_h) > 0.08 if tot_h > 0 else False
+
+            if has_light_header and sum(corner_col) > 400:
+                # Light studio textured backdrop: Frosted PC header pill
+                h_box = self.scale_box((0.20, 0.02, 0.80, 0.19), w, h)
+                draw.rectangle(h_box, fill=(246, 246, 246))
+                f_title, tw, th, _ = self.fit_text(draw, "FROSTED PC · MAGNETIC", "arialbd.ttf", int(0.55 * w), int(0.055 * h), start_size=int(0.038 * w))
+                draw.text((h_box[0] + (h_box[2] - h_box[0] - tw) // 2, h_box[1] + int(0.02 * h)), "FROSTED PC · MAGNETIC", fill=(25, 25, 25), font=f_title)
+
+                model_lbl = f"FOR {model_name.upper()}"
+                f_p1, mw, mh, _ = self.fit_text(draw, model_lbl, "arialbd.ttf", int(0.26 * w), int(0.035 * h), start_size=int(0.019 * w))
+                p1_w = mw + int(0.03 * w)
+                p1_h = int(0.055 * h)
+                p1_x = h_box[0] + int(0.02 * w)
+                p1_y = h_box[1] + int(0.09 * h)
+                draw.rounded_rectangle([p1_x, p1_y, p1_x + p1_w, p1_y + p1_h], radius=int(0.025 * h), fill=(255, 255, 255), outline=(220, 220, 225), width=1)
+                draw.text((p1_x + (p1_w - mw) // 2, p1_y + (p1_h - mh) // 2), model_lbl, fill=(30, 30, 35), font=f_p1)
+
+                f_p2, cw, ch, _ = self.fit_text(draw, "PEAK ROCK", "arialbd.ttf", int(0.26 * w), int(0.035 * h), start_size=int(0.019 * w))
+                p2_w = cw + int(0.03 * w)
+                p2_x = p1_x + p1_w + int(0.02 * w)
+                draw.rounded_rectangle([p2_x, p1_y, p2_x + p2_w, p1_y + p1_h], radius=int(0.025 * h), fill=(20, 20, 25))
+                draw.text((p2_x + (p2_w - cw) // 2, p1_y + (p1_h - ch) // 2), "PEAK ROCK", fill=(255, 255, 255), font=f_p2)
+                return
+
+            # Clean product photography with no Chinese text: leave pristine
             return
 
         # gallery_03: Raised Camera Frame & Lens Protection
         if "03" in fname:
-            sample_col = im.getpixel((int(0.05 * w), int(0.05 * h)))[:3]
-            is_beige = sum(sample_col) > 500
+            corner_col = im.getpixel((int(0.05 * w), int(0.05 * h)))[:3]
+            is_beige = abs(corner_col[0] - 235) < 25 and abs(corner_col[1] - 222) < 25 and abs(corner_col[2] - 205) < 25
+            is_dark = sum(corner_col) < 120 and max(corner_col) < 50
 
             if is_beige:
                 # Extended box down to 0.49H to completely eliminate '保护手机镜头防刮花...'
@@ -799,7 +875,8 @@ class ImageTranslator:
                 f_sub, _, _, _ = self.fit_text(draw, "Precision bezel design shields camera lenses", "segoeui.ttf", int(0.56 * w), int(0.030 * h), start_size=int(0.020 * w))
                 draw.text((int(0.04 * w), int(0.190 * h)), "Precision bezel design shields camera lenses", fill=(70, 60, 55), font=f_sub)
                 draw.text((int(0.04 * w), int(0.225 * h)), "against scratches, drops, and everyday wear.", fill=(70, 60, 55), font=f_sub)
-            else:
+                return
+            elif is_dark:
                 top_box = self.scale_box((0.02, 0.02, 0.98, 0.26), w, h)
                 self.inpaint_gradient(im, top_box, c_top=(12, 16, 22), c_bottom=(12, 16, 22))
                 title = "FLAGSHIP LUXURY MATTE"
@@ -810,11 +887,19 @@ class ImageTranslator:
                 draw.rounded_rectangle(badge_box, radius=int(0.035 * h), fill=(200, 25, 25))
                 f_pill, pw, ph, _ = self.fit_text(draw, "SILKY TOUCH • ULTRA-PREMIUM", "arialbd.ttf", int(0.44 * w), int(0.045 * h), start_size=int(0.022 * w))
                 draw.text((badge_box[0] + (badge_box[2] - badge_box[0] - pw) // 2, badge_box[1] + (badge_box[3] - badge_box[1] - ph) // 2), "SILKY TOUCH • ULTRA-PREMIUM", fill=(255, 255, 255), font=f_pill)
-            return
+                return
 
+            # Clean product photography with no Chinese text: leave pristine
+            return
 
         # gallery_04: Precision Dust Mesh
         if "04" in fname:
+            corner_col = im.getpixel((int(0.05 * w), int(0.05 * h)))[:3]
+            is_dark_infographic = sum(corner_col) < 120 and max(corner_col) < 50
+            if not is_dark_infographic:
+                # Clean studio photography: leave pristine
+                return
+
             top_box = self.scale_box((0.02, 0.02, 0.98, 0.28), w, h)
             self.inpaint_gradient(im, top_box, c_top=(15, 18, 26), c_bottom=(15, 18, 26))
             f_title, _, _, _ = self.fit_text(draw, "PRECISION DUST MESH", "arialbd.ttf", int(0.90 * w), int(0.065 * h), start_size=int(0.038 * w))
@@ -832,6 +917,12 @@ class ImageTranslator:
 
         # gallery_05: Upgraded Frame & Comparison
         if "05" in fname:
+            corner_col = im.getpixel((int(0.05 * w), int(0.05 * h)))[:3]
+            is_dark_infographic = sum(corner_col) < 120 and max(corner_col) < 50
+            if not is_dark_infographic:
+                # Clean studio photography: leave pristine
+                return
+
             top_box = self.scale_box((0.02, 0.02, 0.98, 0.25), w, h)
             self.inpaint_gradient(im, top_box, c_top=(12, 16, 22), c_bottom=(12, 16, 22))
             title = "UPGRADED FRAME & BACKPLATE"
@@ -1034,6 +1125,17 @@ class ImageTranslator:
         clean_col: str,
     ):
         """Translates Frosted PC / Hard PC SKU images across (800x800, 1600x1600)."""
+        # Guard: Only translate if image actually contains Chinese infographic header banner text
+        box_probe = (int(0.20 * w), int(0.02 * h), int(0.80 * w), int(0.19 * h))
+        crop_probe = im.crop(box_probe)
+        dark_count = sum(1 for x in range(0, crop_probe.width, 10) for y in range(0, crop_probe.height, 10) if sum(crop_probe.getpixel((x, y))) / 3 < 50)
+        tot_probe = sum(1 for x in range(0, crop_probe.width, 10) for y in range(0, crop_probe.height, 10))
+        has_header_text = (dark_count / tot_probe) > 0.08 if tot_probe > 0 else False
+
+        if not has_header_text:
+            # Clean product photography with no Chinese text banner: leave 100% pristine
+            return
+
         box = self.scale_box((0.20, 0.02, 0.80, 0.19), w, h)
         draw.rectangle(box, fill=(246, 246, 246))
 
@@ -1175,9 +1277,35 @@ class ImageTranslator:
         }
 
     def _infer_color_from_sku(self, sku_code: str) -> str:
-        """Derives clean color name from SKU abbreviation token."""
-        code_upper = sku_code.upper()
+        """Derives clean color name from inventory.csv or SKU abbreviation token."""
+        code_upper = sku_code.upper().strip()
+
+        # 1. First check live inventory.csv if available
+        inv_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "inventory.csv"))
+        if os.path.exists(inv_path):
+            try:
+                import csv
+                with open(inv_path, "r", encoding="utf-8-sig") as f:
+                    for r in csv.DictReader(f):
+                        c = r.get("Product Code", "").strip().upper()
+                        col = r.get("Color", "").strip()
+                        if c and col and c == code_upper:
+                            return col
+            except Exception:
+                pass
+
+        # 2. Comprehensive SKU token color mapping
         mapping = {
+            "-LG-": "Light Gray Wood Grain",
+            "-DG-": "Dark Gray Wood Grain",
+            "-LY-": "Light Yellow Wood Grain",
+            "-PL-": "Poplar Wood Grain",
+            "-RP-": "Red Poplar Wood Grain",
+            "-CB-": "Cowboy Wood Grain",
+            "-PW-": "Poplar Wood Grain",
+            "-DW-": "Dark Gray Wood Grain",
+            "-WD-": "Wood Grain",
+            "-TB-": "Titanium Black",
             "-BK-": "Obsidian Black",
             "-WT-": "Antique White",
             "-GY-": "Titanium Gray",
@@ -1194,6 +1322,8 @@ class ImageTranslator:
             "-CL-": "Crystal Clear",
             "-SV-": "Titanium Silver",
             "-OR-": "Terracotta Orange",
+            "-YL-": "Yellow",
+            "-BR-": "Brown",
         }
         for token, col in mapping.items():
             if token in code_upper:
